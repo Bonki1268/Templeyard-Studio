@@ -7,7 +7,7 @@ n="$1"; name="$2"
 log=$(mktemp)
 if ! bash scripts/gate.sh > "$log" 2>&1; then
   grep -nE "^not ok|# fail [1-9]|failed|有 .* 個情境|Error" "$log" | head -30
-  echo "驗證閘門沒過，未 commit（完整紀錄：$log）"
+  echo "驗證閘門沒過，未 commit（完整紀錄：${log}）"
   exit 1
 fi
 grep -E "情境對照檢查通過|passed|驗證閘門通過" "$log"

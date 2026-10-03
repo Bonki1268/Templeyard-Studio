@@ -4,6 +4,9 @@ const { startApp } = require('../helpers');
 const { videoAtStep, STORY } = require('./scenario');
 const { PRICES } = require('../../src/cost/prices');
 
+// 短期網址的到期時間會隨時間改變，比較內容時去掉 url。
+const noUrls = v => JSON.parse(JSON.stringify(v, (k, x) => (k === 'url' ? undefined : x)));
+
 test('步驟 3 API', async t => {
   const s = await startApp();
   t.after(() => s.close());
@@ -50,7 +53,7 @@ test('步驟 3 API', async t => {
     assert.equal(next.shots[1].shotSize, '特寫');
     assert.equal(next.shots[1].seconds, 2.5);
     assert.equal(next.shots[1].line, '這座廟，藏著老一輩才知道的故事。');
-    assert.deepEqual(next.shots[0], script.shots[0]);
+    assert.deepEqual(noUrls(next.shots[0]), noUrls(script.shots[0]));
     const bad = await s.request('PATCH', `${base}/script/shots/${shot.id}`, { seconds: -1 });
     assert.equal(bad.status, 422);
     await s.request('PATCH', `${base}/script/shots/${shot.id}`, { seconds: shot.seconds });
@@ -66,7 +69,7 @@ test('步驟 3 API', async t => {
     assert.equal(next.shots[2].id, target.id);
     assert.equal(next.shots[2].index, 3);
     assert.equal(next.shots[2].seconds, target.seconds, '秒數維持不變，總長度不受影響');
-    for (const i of [0, 1, 3, 4]) assert.deepEqual(next.shots[i], script.shots[i]);
+    for (const i of [0, 1, 3, 4]) assert.deepEqual(noUrls(next.shots[i]), noUrls(script.shots[i]));
     const gens = (await s.get(`/api/generations?videoId=${videoId}`)).data.generations;
     assert.ok(gens.some(g => g.instruction === '改成黃昏的屋脊特寫' && g.shotId === target.id));
     script = next;

@@ -17,6 +17,7 @@ const { createStep2Service, registerStep2Routes } = require('./steps/step2');
 const { createStep3Service, registerStep3Routes } = require('./steps/step3');
 const { createStep4Service, registerStep4Routes } = require('./steps/step4');
 const { createStep5Service, registerStep5Routes } = require('./steps/step5');
+const { createStep6Service, registerStep6Routes } = require('./steps/step6');
 const { createJobs } = require('./jobs');
 const { DEFAULTS } = require('./cost/prices');
 
@@ -58,11 +59,13 @@ function createApp(options = {}) {
   ctx.videos.hooks.before[4] = v => ctx.step4.lock(v);
   ctx.videos.hooks.after[4] = v => ctx.step4.syncSeries(v);
   ctx.step5 = createStep5Service(ctx);
+  ctx.step6 = createStep6Service(ctx);
   // 預估費用：GET /api/videos/:id/estimate/:action
   ctx.estimators = {
     script: id => ctx.step3.estimate(id),
     characters: id => ctx.step4.estimate(id),
     frames: id => ctx.step5.estimate(id),
+    clips: id => ctx.step6.estimate(id),
   };
 
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
@@ -75,6 +78,7 @@ function createApp(options = {}) {
   registerStep3Routes(router, ctx);
   registerStep4Routes(router, ctx);
   registerStep5Routes(router, ctx);
+  registerStep6Routes(router, ctx);
   router.get('/api/videos/:id/estimate/:action', ({ params }) => {
     const estimator = ctx.estimators[params.action];
     if (!estimator) throw notFound('沒有這個預估項目');
