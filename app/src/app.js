@@ -8,6 +8,8 @@ const { createSeriesService, registerSeriesRoutes } = require('./series');
 const { createPromptService } = require('./prompts');
 const { createProviders } = require('./ai');
 const { createGenerationService, registerGenerationRoutes } = require('./ai/generation');
+const { createLedger } = require('./cost/ledger');
+const { DEFAULTS } = require('./cost/prices');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -26,6 +28,11 @@ function createApp(options = {}) {
   ctx.series = createSeriesService(ctx);
   ctx.prompts = options.prompts || createPromptService(options.promptOptions);
   ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output });
+  ctx.ledger = createLedger({
+    store,
+    capOf: options.costCapOf || (videoId => store.get('videos', videoId)?.costCap ?? DEFAULTS.costCap),
+    threshold: options.costThreshold ?? DEFAULTS.threshold,
+  });
   ctx.generations = createGenerationService(ctx);
 
   const temples = templeDb(options.templeCsv);
