@@ -33,8 +33,31 @@ function createGenerationService({ store, prompts, ai, config, ledger }) {
     }
   }
 
+  // 不經 prompt 的生成（語音合成、背景音樂），一樣記帳並寫生成紀錄。
+  async function runDirect({ videoId, step, kind, input = {}, units, consent = false, call, meta = {} }) {
+    const cost = estimateCost(kind, units);
+    ledger.check(videoId, cost, consent);
+    let generation = store.insert('generations', {
+      videoId, step, promptId: null, promptVersion: null, kind, provider: ai.name, model: ai.models[kind] || '',
+      input, instruction: '', status: 'running', estimate: cost, cost: 0, ...meta,
+    });
+    const entry = ledger.reserve(videoId, cost, { generationId: generation.id, kind, step });
+    try {
+      const result = await call(ai);
+      const actual = result.cost ?? cost;
+      ledger.settle(entry.id, actual);
+      generation = store.update('generations', generation.id, { status: 'succeeded', cost: actual, model: result.model || generation.model, output: rel(result.file) });
+      return { generation, result };
+    } catch (err) {
+      ledger.refund(entry.id);
+      store.update('generations', generation.id, { status: 'failed', error: err.message });
+      throw err;
+    }
+  }
+
   return {
     run,
+    runDirect,
     list: filter => store.list('generations', g => (!filter.videoId || g.videoId === filter.videoId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   };

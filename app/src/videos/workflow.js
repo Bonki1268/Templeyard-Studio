@@ -47,7 +47,7 @@ const CONDITIONS = {
     const shots = v.script?.shots || [];
     const missing = shots.filter(s => !v.clips?.[s.id]?.selected).map(s => s.index);
     const unmet = missing.length ? [`第 ${missing.join('、')} 格尚未產生分鏡影片`] : [];
-    if (!v.final?.file) unmet.push('尚未合成成品');
+    if (!v.final?.file || v.final.status !== 'done') unmet.push('尚未合成成品');
     else if (v.final.stale) unmet.push('分鏡或聲音設定已變更，請重新合成成品');
     return unmet;
   },

@@ -1,9 +1,9 @@
 // 本機 ffmpeg／ffprobe 呼叫。
 const { spawn } = require('node:child_process');
 
-function exec(cmd, args) {
+function exec(cmd, args, { cwd } = {}) {
   return new Promise((resolve, reject) => {
-    const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const p = spawn(cmd, args, { stdio: ['ignore', 'pipe', 'pipe'], cwd });
     const out = []; const err = [];
     p.stdout.on('data', d => out.push(d));
     p.stderr.on('data', d => err.push(d));
@@ -15,7 +15,7 @@ function exec(cmd, args) {
   });
 }
 
-const ffmpeg = args => exec('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', ...args]);
+const ffmpeg = (args, options) => exec('ffmpeg', ['-y', '-hide_banner', '-loglevel', 'error', ...args], options);
 
 async function probe(file) {
   const json = JSON.parse(await exec('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file]));

@@ -31,7 +31,8 @@ function createVideoService({ store, series }) {
         templeId: null, temple: null, templeHistory: '',
         photos: [],
         story: { original: '', polished: null, adopted: '', choice: null },
-        script: null, characters: [], frames: {}, clips: {}, final: null,
+        script: null, characters: [], frames: {}, clips: {}, final: null, finals: [],
+        audio: { voiceMode: 'native', music: 'warm-piano', subtitles: true }, musicUploads: [],
       });
     },
     // 修改某一步的內容：檢查能否進入該步，套用修改，並讓後續確認失效。
