@@ -2,16 +2,17 @@
 
 規格書沒寫清楚、會影響設計的地方。每一項都已先採用「目前預設」繼續開發，等你決定後再調整。
 
-## 1. 文字生成模型（潤飾、腳本）
+## 1. 文字生成模型（潤飾、腳本）— ✅ 已決定：Claude
 - **問題**：規格書寫「文字生成的模型另定」。
 - **選項**：Claude（Anthropic API）、GPT（OpenAI）、Gemini；或 Higgsfield 若有提供文字模型。
 - **建議**：Claude Sonnet 系列，中文寫作與 JSON 結構化輸出穩定；需要 API 金鑰（放 `.env`，系統不會讀出或印出）。
-- **目前預設**：假實作（`AI_PROVIDER=fake`），結果固定、不花錢。
+- **決定**：使用 Claude（`claude-opus-5-5`）。已實作，見 `docs/真實服務接入.md`；需要你在 `.env` 填入 `ANTHROPIC_API_KEY`（或 `ant auth login`）。
 
-## 2. Higgsfield 存取方式與模型名稱
+## 2. Higgsfield 存取方式與模型名稱 — ✅ 已決定：Higgsfield API
 - **問題**：需要 Higgsfield 的 API 金鑰、API 文件（端點、非同步任務查詢方式），以及圖片模型與影片模型（Seedance 2.0）的正式名稱與價格。
 - **選項**：(a) 提供 API 金鑰與文件，由系統直接呼叫；(b) 若沒有公開 API，只能手動在 Higgsfield 網站生成後上傳結果。
 - **建議**：(a)。轉接層已預留介面，只要補上 provider。
+- **決定**：使用 Higgsfield API。圖片用 Grok Imagine Image 2.0（支援多張參考圖），影片用 Seedance 2.0 圖生影片。已實作，見 `docs/真實服務接入.md`；需要你在 `.env` 填入 `HF_API_KEY_ID`、`HF_API_KEY_SECRET`。若想改用其他圖片模型（例如 Soul），用環境變數 `HIGGSFIELD_IMAGE_MODEL` 指定。
 - **目前預設**：假實作；`prompt-studio/prompts/` 中圖片、影片節點的 `target.model` 維持空白（使用預設模型），畫面比例已改為 16:9。`shot-video.json` 已放入 `seedance-2.0` 與 `kling-2.1` 兩套模型專用寫法（`modelRules`），確定模型名稱後把 `target.model` 填成對應的名稱即可套用。
 
 ## 3. 價格表、每支影片上限與單筆門檻

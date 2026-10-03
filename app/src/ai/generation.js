@@ -8,7 +8,9 @@ function createGenerationService({ store, prompts, ai, config, ledger }) {
 
   // estimate 未指定時依生成類型與 units（seconds、count）計算；consent 表示使用者已同意超過門檻或上限。
   async function run({ videoId, step, promptId, variables = {}, instruction = '', model, target, call, meta = {}, estimate, units, consent = false }) {
-    const request = await prompts.render(promptId, variables, { model });
+    // 有模型專用寫法時（例如 Seedance），組裝時套用該模型的規則。
+    const ruleModel = model ?? ai.ruleModels?.[prompts.load(promptId).target?.kind];
+    const request = await prompts.render(promptId, variables, { model: ruleModel });
     const kind = request.target?.kind;
     const cost = estimate ?? estimateCost(kind, units);
     ledger.check(videoId, cost, consent);
