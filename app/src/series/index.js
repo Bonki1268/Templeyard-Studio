@@ -75,14 +75,14 @@ function createSeriesService({ store }) {
   };
 }
 
-function registerSeriesRoutes(router, { series, store }) {
-  router.get('/api/series', () => ({ series: series.list() }));
-  router.post('/api/series', async ({ json }) => new Reply(201, { series: series.create(await json()) }));
+function registerSeriesRoutes(router, { series, store, present }) {
+  router.get('/api/series', () => ({ series: present(series.list()) }));
+  router.post('/api/series', async ({ json }) => new Reply(201, { series: present(series.create(await json())) }));
   router.get('/api/series/:id', ({ params }) => ({
-    series: series.get(params.id),
-    videos: store.list('videos', v => v.seriesId === params.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)),
+    series: present(series.get(params.id)),
+    videos: present(store.list('videos', v => v.seriesId === params.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))),
   }));
-  router.put('/api/series/:id', async ({ params, json }) => ({ series: series.update(params.id, await json()) }));
+  router.put('/api/series/:id', async ({ params, json }) => ({ series: present(series.update(params.id, await json())) }));
   router.get('/api/series/:id/history', ({ params }) => ({ history: series.history(params.id) }));
   router.post('/api/series/:id/characters', async ({ params, json }) => new Reply(201, { character: series.addCharacter(params.id, await json()) }));
 }

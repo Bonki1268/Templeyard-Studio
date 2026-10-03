@@ -9,8 +9,12 @@ function createVideoService({ store, series }) {
     return v;
   };
 
+  // 確認時的附加動作：before 在同一次寫入中修改影片，after 在寫入後執行（例如寫回系列）。
+  const hooks = { before: {}, after: {} };
+
   return {
     get,
+    hooks,
     create(seriesId) {
       const s = series.get(seriesId);
       return store.insert('videos', {
@@ -43,8 +47,13 @@ function createVideoService({ store, series }) {
     },
     confirm(id, step) {
       let record;
-      const saved = store.update('videos', id, v => { record = wf.confirm(v, step); });
+      const saved = store.update('videos', id, v => {
+        record = wf.confirm(v, step);
+        hooks.before[step]?.(v);
+        Object.assign(record.content, Object.fromEntries((wf.STEP_FIELDS[step] || []).map(k => [k, v[k] ?? null])));
+      });
       store.insert('confirmations', { videoId: id, ...record });
+      hooks.after[step]?.(saved);
       return saved;
     },
     confirmations: id => store.list('confirmations', c => c.videoId === id).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),

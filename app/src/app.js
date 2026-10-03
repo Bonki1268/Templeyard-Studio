@@ -15,6 +15,7 @@ const { createDetector } = require('./media/deidentify');
 const { createSigner } = require('./media/signed');
 const { createStep2Service, registerStep2Routes } = require('./steps/step2');
 const { createStep3Service, registerStep3Routes } = require('./steps/step3');
+const { createStep4Service, registerStep4Routes } = require('./steps/step4');
 const { DEFAULTS } = require('./cost/prices');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -50,8 +51,14 @@ function createApp(options = {}) {
   ctx.photos = createPhotoService(ctx);
   ctx.step2 = createStep2Service(ctx);
   ctx.step3 = createStep3Service(ctx);
+  ctx.step4 = createStep4Service(ctx);
+  ctx.videos.hooks.before[4] = v => ctx.step4.lock(v);
+  ctx.videos.hooks.after[4] = v => ctx.step4.syncSeries(v);
   // 預估費用：GET /api/videos/:id/estimate/:action
-  ctx.estimators = { script: id => ctx.step3.estimate(id) };
+  ctx.estimators = {
+    script: id => ctx.step3.estimate(id),
+    characters: id => ctx.step4.estimate(id),
+  };
 
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
   registerTempleRoutes(router, ctx.temples);
@@ -61,6 +68,7 @@ function createApp(options = {}) {
   registerPhotoRoutes(router, ctx);
   registerStep2Routes(router, ctx);
   registerStep3Routes(router, ctx);
+  registerStep4Routes(router, ctx);
   router.get('/api/videos/:id/estimate/:action', ({ params }) => {
     const estimator = ctx.estimators[params.action];
     if (!estimator) throw notFound('沒有這個預估項目');

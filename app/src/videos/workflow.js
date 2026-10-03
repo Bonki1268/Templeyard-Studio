@@ -99,4 +99,4 @@ function confirm(video, step, conditions = CONDITIONS) {
   return { step, rev: st.rev, content };
 }
 
-module.exports = { STEPS, STEP_NAMES, CONDITIONS, initialSteps, touch, confirm, canEnter, assertCanEnter, refresh };
+module.exports = { STEPS, STEP_NAMES, STEP_FIELDS, CONDITIONS, initialSteps, touch, confirm, canEnter, assertCanEnter, refresh };
