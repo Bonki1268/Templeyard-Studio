@@ -1,0 +1,11 @@
+{
+  "name": "templeyard-prompt-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "廟埕影室（Templeyard Studio）各節點 AI 指令（prompt JSON）的管理頁與 API",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" }
+}

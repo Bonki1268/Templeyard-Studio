@@ -1,0 +1,22 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Main.dc.html": { "expand": "fill", "h": 1080, "is_interactive": true, "title": "首頁：建立系列專案", "w": 1440, "x": 0, "y": 0 },
+    "Series.dc.html": { "expand": "fill", "h": 1000, "is_interactive": true, "title": "系列專案", "w": 1440, "x": 1520, "y": 0 },
+    "Step2.dc.html": { "expand": "fill", "h": 1560, "is_interactive": true, "title": "步驟 2：新增影片", "w": 1440, "x": 3040, "y": 0 },
+    "Step3.dc.html": { "expand": "fill", "h": 1320, "is_interactive": true, "title": "步驟 3：故事腳本", "w": 1440, "x": 4560, "y": 0 },
+    "Step4.dc.html": { "expand": "fill", "h": 1120, "is_interactive": true, "title": "步驟 4：角色設計", "w": 1440, "x": 6080, "y": 0 },
+    "Step5.dc.html": { "expand": "fill", "h": 1180, "is_interactive": true, "title": "步驟 5：精緻圖模擬", "w": 1440, "x": 7600, "y": 0 },
+    "Step6.dc.html": { "expand": "fill", "h": 1280, "is_interactive": true, "title": "步驟 6：影片生成", "w": 1440, "x": 9120, "y": 0 }
+  },
+  "createdOnFiles": { "at": "2026-10-03T08:55:00Z", "v": 1 },
+  "designSystems": [],
+  "launch": { "view": "canvas" },
+  "notes": {
+    "flowTitle": { "kind": "title1", "maxW": 8000, "text": "廟埕影室：從建立系列到下載成品", "w": 240, "x": 0, "y": -300 }
+  },
+  "order": ["Main.dc.html", "Series.dc.html", "Step2.dc.html", "Step3.dc.html", "Step4.dc.html", "Step5.dc.html", "Step6.dc.html"],
+  "pages": [],
+  "title": "廟埕影室 介面設計"
+}

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<title>步驟 5：精緻圖模擬</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F4F5F7}
+a{color:#A8321F}a:hover{color:#7E2416}
+.btn{font:inherit;font-size:15px;font-weight:500;min-height:44px;padding:0 18px;border-radius:10px;border:1px solid #CBCFD6;background:#FFFFFF;color:#16181D;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-sizing:border-box}
+.btn:hover{border-color:#8A909A;color:#16181D}
+.btn-primary{background:#A8321F;border-color:#A8321F;color:#FFFFFF}
+.btn-primary:hover{background:#8C2919;border-color:#8C2919;color:#FFFFFF}
+.input{font:inherit;font-size:15px;min-height:44px;padding:0 12px;border:1px solid #CBCFD6;border-radius:10px;background:#FFFFFF;color:#16181D;box-sizing:border-box;width:100%}
+.input:focus{outline:2px solid #F0C9C2;border-color:#A8321F}
+.mono{font-family:'IBM Plex Mono',monospace}
+.ph{background:repeating-linear-gradient(135deg,#E3E6EA 0 10px,#ECEEF1 10px 20px);display:flex;align-items:center;justify-content:center;color:#4A4F59;font-size:13px;text-align:center}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #F4F5F7; font-family: 'Noto Sans TC', sans-serif; color: #16181D">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 32px; background: #FFFFFF; border-bottom: 1px solid #E3E5E9">
+    <a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #16181D">
+      <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #16181D; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M10 9l5 3-5 3z"></path></svg>
+      </span>
+      <span style="display: flex; align-items: baseline; gap: 8px"><span style="font-weight: 700; font-size: 18px; letter-spacing: 0.08em">廟埕影室</span><span style="font-size: 12px; color: #4A4F59">Templeyard Studio</span></span>
+    </a>
+    <span style="font-size: 13px; color: #4A4F59; border: 1px solid #DADDE2; border-radius: 999px; padding: 4px 12px">本機個人使用</span>
+  </header>
+
+  <div style="background: #FFFFFF; border-bottom: 1px solid #E3E5E9">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 16px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; align-items: center">
+        <nav aria-label="位置" style="font-size: 14px; color: #4A4F59"><a href="Main.dc.html">首頁</a> <span aria-hidden="true">›</span> <a href="Series.dc.html">淡水廟宇故事</a> <span aria-hidden="true">›</span> 鄞山寺：渡海來台的香火</nav>
+        <p style="margin: 0; font-size: 13px; color: #4A4F59">本支影片費用 <span class="mono" style="color: #16181D">US$[已用]</span> ／ 上限 <span class="mono" style="color: #16181D">US$[上限]</span></p>
+      </div>
+      <ol aria-label="製作步驟" style="list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px">
+        <sc-for list="{{steps}}" as="s" hint-placeholder-count="6">
+          <li style="display: flex; align-items: center; gap: 8px; font-size: 14px">
+            <sc-if value="{{s.done}}" hint-placeholder-val="{{false}}">
+              <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; background: #16181D; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5 9-10"></path></svg></span>
+              <span>{{s.label}}</span>
+            </sc-if>
+            <sc-if value="{{s.current}}" hint-placeholder-val="{{false}}">
+              <span aria-hidden="true" style="width: 26px; height: 26px; border-radius: 50%; background: #A8321F; color: #FFFFFF; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center">{{s.n}}</span>
+              <span aria-current="step" style="font-weight: 700">{{s.label}}</span>
+            </sc-if>
+            <sc-if value="{{s.todo}}" hint-placeholder-val="{{true}}">
+              <span aria-hidden="true" style="width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid #9EA3AC; color: #4A4F59; font-size: 13px; display: flex; align-items: center; justify-content: center">{{s.n}}</span>
+              <span style="color: #4A4F59">{{s.label}}</span>
+            </sc-if>
+          </li>
+        </sc-for>
+      </ol>
+    </div>
+  </div>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 28px 24px 120px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px">
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h1 style="margin: 0; font-size: 26px; font-weight: 700">精緻圖模擬</h1>
+        <p style="margin: 0; font-size: 15px; color: #4A4F59">以你的照片為場景、定裝圖為角色，逐格產生；完成一格就填上一格。</p>
+      </div>
+      <p style="margin: 0; font-size: 14px; color: #2E323A"><span class="mono">6</span> ／ 8 格完成・<span class="mono">1</span> 格生成中</p>
+    </div>
+
+    <section aria-label="分鏡膠捲" style="background: #16181D; border-radius: 16px; padding: 16px; display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 10px">
+      <sc-for list="{{frames}}" as="f" hint-placeholder-count="8">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <sc-if value="{{f.selected}}" hint-placeholder-val="{{false}}">
+            <button type="button" aria-pressed="true" aria-label="第 {{f.n}} 格" style="font: inherit; padding: 0; border-radius: 8px; border: 3px solid #E07A66; background: none; cursor: pointer; aspect-ratio: 16 / 9; overflow: hidden">
+              <span class="ph" style="width: 100%; height: 100%; font-size: 12px">{{f.n}}</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{f.plain}}" hint-placeholder-val="{{true}}">
+            <button type="button" aria-pressed="false" aria-label="第 {{f.n}} 格" style="font: inherit; padding: 0; border-radius: 8px; border: 1px solid #3A3E46; background: none; cursor: pointer; aspect-ratio: 16 / 9; overflow: hidden">
+              <span class="ph" style="width: 100%; height: 100%; font-size: 12px">{{f.n}}</span>
+            </button>
+          </sc-if>
+          <sc-if value="{{f.running}}" hint-placeholder-val="{{false}}">
+            <div style="aspect-ratio: 16 / 9; border-radius: 8px; border: 1px dashed #8A909A; color: #DADDE2; font-size: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+              <span>生成中</span>
+              <span aria-hidden="true" style="width: 60%; height: 4px; border-radius: 2px; background: #3A3E46; overflow: hidden"><span style="display: block; width: 55%; height: 100%; background: #E07A66"></span></span>
+            </div>
+          </sc-if>
+          <sc-if value="{{f.waiting}}" hint-placeholder-val="{{false}}">
+            <div style="aspect-ratio: 16 / 9; border-radius: 8px; border: 1px dashed #5C616B; color: #B9BDC5; font-size: 12px; display: flex; align-items: center; justify-content: center">等待中</div>
+          </sc-if>
+          <span style="font-size: 12px; color: #DADDE2">第 {{f.n}} 格・{{f.size}}</span>
+        </div>
+      </sc-for>
+    </section>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+      <section aria-labelledby="sel" style="flex: 999 1 600px; min-width: 0; background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline">
+          <h2 id="sel" style="margin: 0; font-size: 18px; font-weight: 700">第 2 格：小晴走進廟埕，回頭看向鏡頭</h2>
+          <span style="font-size: 13px; color: #4A4F59">中景・照片 1・4 秒</span>
+        </div>
+        <div class="ph" style="aspect-ratio: 16 / 9; border-radius: 12px; font-size: 15px">精緻圖（1920×1080）</div>
+        <div style="display: flex; flex-direction: column; gap: 8px">
+          <span style="font-size: 14px; font-weight: 500; color: #2E323A">候選版本</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 10px">
+            <button type="button" aria-pressed="false" style="font: inherit; padding: 0; width: 160px; aspect-ratio: 16 / 9; border-radius: 8px; border: 1px solid #CBCFD6; background: none; cursor: pointer; overflow: hidden"><span class="ph" style="width: 100%; height: 100%; font-size: 12px">版本 1</span></button>
+            <button type="button" aria-pressed="true" style="font: inherit; padding: 0; width: 160px; aspect-ratio: 16 / 9; border-radius: 8px; border: 3px solid #A8321F; background: none; cursor: pointer; overflow: hidden"><span class="ph" style="width: 100%; height: 100%; font-size: 12px">版本 2・已選</span></button>
+          </div>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end">
+          <div style="flex: 1 1 320px; display: flex; flex-direction: column; gap: 6px">
+            <label for="ins" style="font-size: 14px; font-weight: 500; color: #2E323A">調整指令</label>
+            <input id="ins" class="input" type="text" placeholder="例如：光線再暖一點，小晴往畫面左邊站">
+          </div>
+          <button class="btn" type="button">依指令重生</button>
+          <button class="btn" type="button">直接重生</button>
+        </div>
+      </section>
+
+      <aside aria-labelledby="qc" style="flex: 1 1 300px; min-width: 0; background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+        <h2 id="qc" style="margin: 0; font-size: 17px; font-weight: 700">品質檢查</h2>
+        <p style="margin: 0; font-size: 13px; color: #4A4F59">逐項確認，不合格就重生這一格。</p>
+        <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px"><input type="checkbox" checked style="width: 20px; height: 20px; accent-color: #A8321F; margin: 0">角色臉、髮型、服裝與定裝圖一致</label>
+        <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px"><input type="checkbox" checked style="width: 20px; height: 20px; accent-color: #A8321F; margin: 0">廟宇建築與照片一致</label>
+        <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px"><input type="checkbox" style="width: 20px; height: 20px; accent-color: #A8321F; margin: 0">手部與畫面中的文字沒有變形</label>
+        <label style="display: flex; align-items: center; gap: 10px; min-height: 44px; font-size: 15px"><input type="checkbox" style="width: 20px; height: 20px; accent-color: #A8321F; margin: 0">沒有可辨識的真實民眾</label>
+      </aside>
+    </div>
+  </main>
+
+  <footer style="position: sticky; bottom: 0; background: #FFFFFF; border-top: 1px solid #E3E5E9">
+    <div style="max-width: 1200px; margin: 0 auto; padding: 14px 24px; box-sizing: border-box; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px">
+      <a class="btn" href="Step4.dc.html">上一步</a>
+      <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+        <span style="font-size: 14px; color: #4A4F59">8 格都選定精緻圖後才能確認</span>
+        <a class="btn btn-primary" href="Step6.dc.html">確認精緻圖，生成影片</a>
+      </div>
+    </div>
+  </footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const labels = ['系列設定', '新增影片', '故事腳本', '角色設計', '精緻圖', '影片生成'];
+    const cur = 5;
+    const sizes = ['遠景', '中景', '特寫', '中景', '特寫', '中景', '遠景', '中景'];
+    const frames = sizes.map((size, i) => {
+      const n = i + 1;
+      const state = n <= 6 ? 'done' : n === 7 ? 'running' : 'waiting';
+      return {
+        n, size,
+        selected: state === 'done' && n === 2,
+        plain: state === 'done' && n !== 2,
+        running: state === 'running', waiting: state === 'waiting'
+      };
+    });
+    return {
+      steps: labels.map((label, i) => ({ n: i + 1, label, done: i + 1 < cur, current: i + 1 === cur, todo: i + 1 > cur })),
+      frames
+    };
+  }
+}
+</script>
+</body>
+</html>

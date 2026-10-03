@@ -1,0 +1,59 @@
+{
+  "id": "storyboard-image",
+  "step": 3,
+  "name": "分鏡圖",
+  "description": "步驟 3：為單一分鏡產生草圖式分鏡圖。",
+  "version": 1,
+  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "target": {
+    "kind": "image",
+    "model": "",
+    "aspectRatio": "9:16"
+  },
+  "system": "Storyboard sketch, clean line art with light gray tones, cinematic composition, vertical 9:16 frame. Draw a rough frame for planning, not a final image. No text, no logos, no identifiable real people.",
+  "template": "分鏡 {{shot.index}}：{{shot.scene}}\n角色與動作：{{shot.action}}\n鏡頭：{{shot.camera}}\n出場角色：{{characters}}\n系列風格參考：{{series.style}}\n使用者調整指令：{{instruction}}",
+  "variables": [
+    {
+      "name": "shot.index",
+      "label": "分鏡編號",
+      "required": true,
+      "example": "1"
+    },
+    {
+      "name": "shot.scene",
+      "label": "場景",
+      "required": true,
+      "example": "黃昏時的廟宇正面"
+    },
+    {
+      "name": "shot.action",
+      "label": "角色動作",
+      "required": true,
+      "example": "導覽員走向廟門，回頭看向鏡頭"
+    },
+    {
+      "name": "shot.camera",
+      "label": "鏡頭",
+      "required": false,
+      "example": "由遠推近"
+    },
+    {
+      "name": "characters",
+      "label": "出場角色",
+      "required": false,
+      "example": "導覽員阿亮"
+    },
+    {
+      "name": "series.style",
+      "label": "系列視覺風格",
+      "required": false,
+      "example": "溫暖寫實、黃昏暖色調"
+    },
+    {
+      "name": "instruction",
+      "label": "調整指令",
+      "required": false,
+      "example": ""
+    }
+  ]
+}

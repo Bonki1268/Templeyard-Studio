@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-Hant"><head>
+<meta charset="utf-8">
+<title>系列專案</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&amp;family=IBM+Plex+Mono:wght@500&amp;display=swap" rel="stylesheet"><style>
+body{margin:0;background:#F4F5F7}
+a{color:#A8321F}a:hover{color:#7E2416}
+.btn{font:inherit;font-size:15px;font-weight:500;min-height:44px;padding:0 18px;border-radius:10px;border:1px solid #CBCFD6;background:#FFFFFF;color:#16181D;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-sizing:border-box}
+.btn:hover{border-color:#8A909A;color:#16181D}
+.btn-primary{background:#A8321F;border-color:#A8321F;color:#FFFFFF}
+.btn-primary:hover{background:#8C2919;border-color:#8C2919;color:#FFFFFF}
+.mono{font-family:'IBM Plex Mono',monospace}
+.ph{background:repeating-linear-gradient(135deg,#E3E6EA 0 10px,#ECEEF1 10px 20px);display:flex;align-items:center;justify-content:center;color:#4A4F59;font-size:13px;text-align:center}
+</style></head>
+<body>
+
+
+<div style="min-height: 100vh; background: #F4F5F7; font-family: 'Noto Sans TC', sans-serif; color: #16181D">
+  <header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding: 14px 32px; background: #FFFFFF; border-bottom: 1px solid #E3E5E9">
+    <a href="Main.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #16181D">
+      <span aria-hidden="true" style="width: 32px; height: 32px; border-radius: 8px; background: #16181D; display: flex; align-items: center; justify-content: center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M10 9l5 3-5 3z"></path></svg>
+      </span>
+      <span style="display: flex; align-items: baseline; gap: 8px"><span style="font-weight: 700; font-size: 18px; letter-spacing: 0.08em">廟埕影室</span><span style="font-size: 12px; color: #4A4F59">Templeyard Studio</span></span>
+    </a>
+    <span style="font-size: 13px; color: #4A4F59; border: 1px solid #DADDE2; border-radius: 999px; padding: 4px 12px">本機個人使用</span>
+  </header>
+
+  <main style="max-width: 1200px; margin: 0 auto; padding: 32px 24px 64px; box-sizing: border-box; display: flex; flex-direction: column; gap: 24px">
+    <nav aria-label="位置" style="font-size: 14px; color: #4A4F59"><a href="Main.html">首頁</a> <span aria-hidden="true">›</span> 淡水廟宇故事</nav>
+
+    <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <h1 style="margin: 0; font-size: 30px; font-weight: 700">淡水廟宇故事</h1>
+        <p style="margin: 0; font-size: 15px; color: #4A4F59">3 支影片・最近更新 10 月 3 日</p>
+      </div>
+      <a class="btn btn-primary" href="Step2.html">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+        新增影片
+      </a>
+    </div>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+      <div style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+        <section aria-labelledby="settings" style="background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px">
+            <h2 id="settings" style="margin: 0; font-size: 17px; font-weight: 700">系列設定</h2>
+            <button class="btn" type="button" style="min-height: 36px; padding: 0 12px; font-size: 14px">編輯</button>
+          </div>
+          <dl style="margin: 0; display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 10px 12px; font-size: 15px">
+            <dt style="color: #4A4F59">視覺風格</dt><dd style="margin: 0">溫暖寫實・黃昏自然光</dd>
+            <dt style="color: #4A4F59">影片秒數</dt><dd style="margin: 0">30 秒</dd>
+            <dt style="color: #4A4F59">影片方向</dt><dd style="margin: 0">在地歷史故事</dd>
+            <dt style="color: #4A4F59">輸出規格</dt><dd style="margin: 0" class="mono">16:9 · 1920×1080</dd>
+          </dl>
+          <p style="margin: 0; font-size: 13px; color: #4A4F59">修改設定只影響之後新增的影片。</p>
+        </section>
+
+        <section aria-labelledby="chars" style="background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 16px; padding: 22px; display: flex; flex-direction: column; gap: 14px">
+          <h2 id="chars" style="margin: 0; font-size: 17px; font-weight: 700">系列角色</h2>
+          <div style="display: flex; gap: 14px; align-items: center">
+            <span class="ph" style="width: 72px; height: 96px; border-radius: 10px; flex: none; font-size: 12px">定裝圖</span>
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <span style="font-size: 16px; font-weight: 500">導覽員小晴</span>
+              <span style="font-size: 13px; color: #4A4F59">定裝版本 v2・已鎖定</span>
+              <span style="font-size: 13px; color: #4A4F59">每支影片自動沿用</span>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <section aria-labelledby="videos" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 12px">
+        <h2 id="videos" style="margin: 0; font-size: 17px; font-weight: 700">影片</h2>
+        
+          <a href="Step3.html" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 14px; background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 14px; text-decoration: none; color: #16181D">
+            <span class="ph" style="width: 160px; height: 90px; border-radius: 8px; flex: none">步驟 3</span>
+            <span style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+              <span style="font-size: 16px; font-weight: 500">渡海來台的香火</span>
+              <span style="font-size: 14px; color: #4A4F59">鄞山寺・淡水區・定光古佛</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+              
+              
+                <span style="font-size: 13px; font-weight: 500; color: #7E2416; background: #FBEFEC; border-radius: 999px; padding: 4px 12px">步驟 3／6 故事腳本</span>
+              
+              <span style="font-size: 13px; color: #4A4F59">今天 16:40</span>
+            </span>
+          </a>
+        
+          <a href="Step6.html" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 14px; background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 14px; text-decoration: none; color: #16181D">
+            <span class="ph" style="width: 160px; height: 90px; border-radius: 8px; flex: none">成品</span>
+            <span style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+              <span style="font-size: 16px; font-weight: 500">老街裡的王爺廟</span>
+              <span style="font-size: 14px; color: #4A4F59">和衷宮・淡水區・朱府三王爺</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+              
+                <span style="font-size: 13px; font-weight: 500; color: #1F5E3C; background: #E3F1E8; border-radius: 999px; padding: 4px 12px">已完成</span>
+              
+              
+              <span style="font-size: 13px; color: #4A4F59">10 月 1 日</span>
+            </span>
+          </a>
+        
+          <a href="Step6.html" style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; padding: 14px; background: #FFFFFF; border: 1px solid #E3E5E9; border-radius: 14px; text-decoration: none; color: #16181D">
+            <span class="ph" style="width: 160px; height: 90px; border-radius: 8px; flex: none">成品</span>
+            <span style="flex: 1 1 240px; display: flex; flex-direction: column; gap: 6px; min-width: 0">
+              <span style="font-size: 16px; font-weight: 500">河口的清水祖師</span>
+              <span style="font-size: 14px; color: #4A4F59">保安廟・淡水區・清水祖師</span>
+            </span>
+            <span style="display: flex; flex-direction: column; align-items: flex-end; gap: 6px">
+              
+                <span style="font-size: 13px; font-weight: 500; color: #1F5E3C; background: #E3F1E8; border-radius: 999px; padding: 4px 12px">已完成</span>
+              
+              
+              <span style="font-size: 13px; color: #4A4F59">9 月 28 日</span>
+            </span>
+          </a>
+        
+      </section>
+    </div>
+  </main>
+</div>
+
+
+
+
+</body></html>

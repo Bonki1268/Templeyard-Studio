@@ -1,0 +1,81 @@
+{
+  "id": "copy-polish",
+  "step": 2,
+  "name": "故事文案潤飾",
+  "description": "步驟 2：依系列規範修飾使用者輸入的故事。",
+  "version": 1,
+  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "target": {
+    "kind": "text",
+    "model": ""
+  },
+  "system": "你是地方觀光文案編輯，擅長把口語的地方故事整理成清楚、有畫面感的繁體中文短文。規則：只能使用下方提供的寺廟資料與使用者故事，不可自行補寫歷史年代、人物或傳說；不得出現對神明不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾臉孔。",
+  "template": "請潤飾以下故事，保留原意與所有事實，不增加新的事實。\n\n寺廟：{{temple.name}}（{{temple.district}}，主祀{{temple.deity}}，創建於{{temple.builtYear}}）\n系列風格：{{series.style}}\n影片方向：{{series.direction}}\n字數上限：{{maxChars}} 字\n\n使用者故事：\n{{story}}",
+  "variables": [
+    {
+      "name": "temple.name",
+      "label": "廟名",
+      "required": true,
+      "example": "鄞山寺"
+    },
+    {
+      "name": "temple.district",
+      "label": "行政區",
+      "required": false,
+      "example": "淡水區"
+    },
+    {
+      "name": "temple.deity",
+      "label": "主祀神明",
+      "required": false,
+      "example": "定光古佛"
+    },
+    {
+      "name": "temple.builtYear",
+      "label": "創建年（西元）",
+      "required": false,
+      "example": "1824"
+    },
+    {
+      "name": "series.style",
+      "label": "系列視覺風格",
+      "required": true,
+      "example": "溫暖寫實、黃昏暖色調"
+    },
+    {
+      "name": "series.direction",
+      "label": "影片方向",
+      "required": false,
+      "example": "在地歷史故事"
+    },
+    {
+      "name": "maxChars",
+      "label": "字數上限",
+      "required": false,
+      "example": "200"
+    },
+    {
+      "name": "story",
+      "label": "使用者故事",
+      "required": true,
+      "example": "老一輩說，當年移民渡海來台，帶著定光古佛的香火在淡水落腳。"
+    }
+  ],
+  "output": {
+    "format": "json",
+    "schema": {
+      "type": "object",
+      "required": [
+        "polished"
+      ],
+      "properties": {
+        "polished": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

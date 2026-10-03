@@ -1,0 +1,394 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Studio · 廟埕影室</title>
+<style>
+  :root {
+    --bg: #f6f5f2; --panel: #ffffff; --ink: #1f2328; --quiet: #5f6670; --line: #e3e1dc;
+    --accent: #9a3b26; --accent-soft: #f6e9e4; --ok: #2f6f4e; --warn: #9a6a00; --bad: #b42318;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.55 -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 2; }
+  header h1 { font-size: 16px; margin: 0; }
+  header .sub { color: var(--quiet); font-size: 13px; }
+  .layout { display: grid; grid-template-columns: 240px minmax(0, 1fr) minmax(0, 420px); gap: 16px; padding: 16px 20px; align-items: start; }
+  @media (max-width: 1100px) { .layout { grid-template-columns: 220px minmax(0, 1fr); } .preview { grid-column: 1 / -1; position: static; max-height: none; } }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; padding: 12px; } nav.card { position: static; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  nav.card { padding: 8px; position: sticky; top: 64px; }
+  nav .step { color: var(--quiet); font-size: 12px; padding: 10px 8px 4px; }
+  nav button { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 8px; text-align: left; background: none; border: 0; border-radius: 8px; padding: 8px; font: inherit; color: inherit; cursor: pointer; }
+  nav button:hover { background: var(--bg); }
+  nav button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .badge { font-size: 11px; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; color: var(--quiet); white-space: nowrap; font-weight: 400; }
+  .editor { padding: 20px; }
+  .editor-head { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+  .editor-head h2 { margin: 0; font-size: 18px; flex: 1; min-width: 160px; }
+  .meta { color: var(--quiet); font-size: 12px; }
+  .status { font-size: 12px; min-height: 18px; }
+  .status.dirty { color: var(--warn); } .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  .grid .wide { grid-column: span 2; } .grid .full { grid-column: 1 / -1; }
+  @media (max-width: 720px) { .grid { grid-template-columns: 1fr 1fr; } .grid .wide { grid-column: 1 / -1; } }
+  label { display: block; font-size: 12px; color: var(--quiet); margin-bottom: 4px; }
+  input[type=text], select, textarea { width: 100%; font: inherit; color: inherit; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; }
+  textarea { font-family: var(--mono); font-size: 13px; resize: vertical; }
+  input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+  section.block { margin-top: 20px; }
+  section.block h3 { font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+  .hint { color: var(--quiet); font-size: 12px; font-weight: 400; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { font-family: var(--mono); font-size: 12px; border-radius: 6px; padding: 1px 8px; background: var(--bg); border: 1px solid var(--line); cursor: pointer; }
+  .chip.undeclared { border-color: var(--bad); color: var(--bad); background: #fdf0ef; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  th { font-size: 12px; color: var(--quiet); font-weight: 500; }
+  td input[type=text] { padding: 5px 7px; }
+  td.c { text-align: center; width: 56px; }
+  .btn { font: inherit; border-radius: 8px; padding: 7px 14px; border: 1px solid var(--line); background: #fff; color: var(--ink); cursor: pointer; white-space: nowrap; }
+  .btn:hover { border-color: var(--quiet); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:disabled { opacity: .45; cursor: default; }
+  .btn.small { padding: 3px 10px; font-size: 12px; }
+  .btn.icon { padding: 3px 8px; color: var(--quiet); }
+  .errors { margin: 12px 0 0; padding: 10px 12px 10px 28px; border-radius: 8px; background: #fdf0ef; color: var(--bad); font-size: 13px; }
+  .errors:empty { display: none; }
+  .preview { padding: 16px; position: sticky; top: 64px; max-height: calc(100vh - 80px); overflow: auto; }
+  .preview h3 { font-size: 14px; margin: 0 0 4px; }
+  .vars { display: grid; gap: 8px; margin: 12px 0; }
+  .vars .missing input, .vars .missing textarea { border-color: var(--bad); }
+  .tabs { display: flex; gap: 4px; margin-top: 12px; border-bottom: 1px solid var(--line); }
+  .tabs button { font: inherit; font-size: 13px; background: none; border: 0; border-bottom: 2px solid transparent; padding: 6px 10px; cursor: pointer; color: var(--quiet); }
+  .tabs button.active { border-color: var(--accent); color: var(--ink); font-weight: 600; }
+  pre { font-family: var(--mono); font-size: 12px; background: var(--bg); border-radius: 8px; padding: 12px; overflow: auto; white-space: pre-wrap; word-break: break-word; margin: 8px 0 0; max-height: 52vh; }
+  .empty { color: var(--quiet); padding: 40px 20px; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Prompt Studio</h1>
+  <span class="sub">廟埕影室 各節點的 AI 指令 · 儲存即更新 prompts/ 資料夾中的 JSON 檔</span>
+</header>
+
+<div class="layout">
+  <nav class="card" id="list" aria-label="Prompt 清單"></nav>
+
+  <main class="card editor" id="editor">
+    <div class="empty">載入中…</div>
+  </main>
+
+  <aside class="card preview" id="preview" aria-label="組裝預覽">
+    <h3>組裝預覽</h3>
+    <div class="hint">填入測試變數，看送給 AI 的實際內容（使用編輯中、尚未儲存的版本）。</div>
+    <div class="vars" id="vars"></div>
+    <button class="btn" id="renderBtn" type="button">組裝預覽</button>
+    <div class="status" id="renderStatus"></div>
+    <div class="tabs" role="tablist">
+      <button type="button" class="active" data-tab="request">送給 AI 的內容</button>
+      <button type="button" data-tab="compiled">JavaScript</button>
+    </div>
+    <pre id="output">（尚未組裝）</pre>
+  </aside>
+</div>
+
+<script>
+const STEP_NAMES = { 1: '系列專案', 2: '新增影片', 3: '故事腳本', 4: '角色設計', 5: '精緻圖模擬', 6: '影片生成' };
+const KIND_NAMES = { text: '文字', image: '圖片', video: '影片' };
+const PH = /\{\{\s*([a-zA-Z_][\w.]*)\s*\}\}/g;
+
+let list = [];
+let saved = null;      // 目前檔案內容（伺服器版本）
+let draft = null;      // 編輯中的內容
+let lastRender = null;
+let tab = 'request';
+const testValues = {}; // promptId -> { varName: value }
+
+const $ = sel => document.querySelector(sel);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+async function api(method, url, body) {
+  const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data.error?.message || res.statusText), { status: res.status, data: data.error || {} });
+  return data;
+}
+
+const isDirty = () => saved && draft && JSON.stringify(saved) !== JSON.stringify(draft);
+
+function setStatus(text, kind = '') {
+  const el = $('#saveStatus');
+  if (el) { el.textContent = text; el.className = 'status ' + kind; }
+}
+
+async function loadList(selectId) {
+  list = (await api('GET', '/api/prompts')).prompts;
+  renderList(selectId || draft?.id);
+  if (!draft && list.length) await open(selectId || list[0].id);
+}
+
+function renderList(activeId) {
+  let html = '', step = null;
+  for (const p of list) {
+    if (p.step !== step) { step = p.step; html += `<div class="step">步驟 ${step}・${esc(STEP_NAMES[step] || '')}</div>`; }
+    html += `<button type="button" class="${p.id === activeId ? 'active' : ''}" data-id="${esc(p.id)}"><span>${esc(p.name)}</span><span class="badge">${esc(KIND_NAMES[p.target] || p.target || '')}</span></button>`;
+  }
+  $('#list').innerHTML = html || '<div class="empty">prompts/ 資料夾沒有檔案</div>';
+}
+
+$('#list').addEventListener('click', async e => {
+  const b = e.target.closest('button[data-id]');
+  if (!b || b.dataset.id === draft?.id) return;
+  if (isDirty() && !confirm('目前的修改尚未儲存，確定要離開？')) return;
+  await open(b.dataset.id);
+});
+
+async function open(id) {
+  const { prompt } = await api('GET', '/api/prompts/' + id);
+  saved = prompt;
+  draft = structuredClone(prompt);
+  lastRender = null;
+  renderList(id);
+  renderEditor();
+  renderVars();
+  $('#output').textContent = '（尚未組裝）';
+  $('#renderStatus').textContent = '';
+  loadHistory();
+}
+
+function renderEditor() {
+  const p = draft;
+  const outFormat = p.output ? p.output.format : 'none';
+  $('#editor').innerHTML = `
+    <div class="editor-head">
+      <h2>${esc(p.name)}</h2>
+      <span class="meta">prompts/${esc(p.id)}.json · 第 ${p.version} 版 · ${esc(new Date(p.updatedAt).toLocaleString('zh-TW'))}</span>
+      <select id="history" aria-label="歷史版本" style="width:auto"><option value="">歷史版本</option></select>
+      <button class="btn" type="button" id="revertBtn">捨棄修改</button>
+      <button class="btn primary" type="button" id="saveBtn">儲存</button>
+    </div>
+    <div class="status" id="saveStatus"></div>
+    <div class="grid">
+      <div class="wide"><label for="f-name">名稱</label><input type="text" id="f-name" data-path="name" value="${esc(p.name)}"></div>
+      <div><label for="f-step">流程步驟</label><select id="f-step" data-path="step" data-type="int">
+        ${[1,2,3,4,5,6].map(s => `<option value="${s}" ${s === p.step ? 'selected' : ''}>${s}・${STEP_NAMES[s]}</option>`).join('')}</select></div>
+      <div><label for="f-kind">生成類型</label><select id="f-kind" data-path="target.kind">
+        ${Object.entries(KIND_NAMES).map(([k, v]) => `<option value="${k}" ${k === p.target.kind ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <div class="wide"><label for="f-desc">說明</label><input type="text" id="f-desc" data-path="description" value="${esc(p.description)}"></div>
+      <div><label for="f-model">模型（空白＝系統預設）</label><input type="text" id="f-model" data-path="target.model" value="${esc(p.target.model)}"></div>
+      <div><label for="f-ratio">畫面比例</label><input type="text" id="f-ratio" data-path="target.aspectRatio" value="${esc(p.target.aspectRatio)}" placeholder="例如 9:16"></div>
+    </div>
+
+    <section class="block">
+      <h3>System 指令 <span class="hint">AI 的角色與不可違反的規則</span></h3>
+      <textarea id="f-system" data-path="system" rows="5">${esc(p.system)}</textarea>
+    </section>
+
+    <section class="block">
+      <h3>指令內容 <span class="hint">用 {{變數}} 標記要帶入的資料</span></h3>
+      <textarea id="f-template" data-path="template" rows="11">${esc(p.template)}</textarea>
+      <div class="chips" id="placeholders"></div>
+    </section>
+
+    <section class="block">
+      <h3>變數 <span class="hint">系統呼叫時傳入；必填變數缺少時會拒絕組裝</span>
+        <button class="btn small" type="button" id="addVar" style="margin-left:auto">新增變數</button></h3>
+      <table>
+        <thead><tr><th>名稱</th><th>顯示名稱</th><th class="c">必填</th><th>測試範例</th><th></th></tr></thead>
+        <tbody id="varRows"></tbody>
+      </table>
+    </section>
+
+    <section class="block">
+      <h3>輸出格式</h3>
+      <div class="grid">
+        <div><select id="f-outformat" aria-label="輸出格式">
+          <option value="none" ${outFormat === 'none' ? 'selected' : ''}>不指定</option>
+          <option value="text" ${outFormat === 'text' ? 'selected' : ''}>純文字</option>
+          <option value="json" ${outFormat === 'json' ? 'selected' : ''}>JSON（需符合結構）</option></select></div>
+        <div class="full" id="schemaWrap" ${outFormat === 'json' ? '' : 'hidden'}>
+          <label for="f-schema">JSON 結構（JSON Schema）</label>
+          <textarea id="f-schema" rows="8">${esc(p.output?.schema ? JSON.stringify(p.output.schema, null, 2) : '')}</textarea>
+        </div>
+      </div>
+    </section>
+    <ul class="errors" id="errors"></ul>`;
+  renderVarRows();
+  renderPlaceholders();
+  updateDirty();
+}
+
+function setPath(obj, path, value) {
+  const keys = path.split('.');
+  let o = obj;
+  keys.slice(0, -1).forEach(k => { o[k] = o[k] ?? {}; o = o[k]; });
+  const last = keys.at(-1);
+  if (value === '' && path.startsWith('target.') && last !== 'kind') delete o[last]; else o[last] = value;
+}
+
+$('#editor').addEventListener('input', e => {
+  const el = e.target;
+  if (el.dataset.path) {
+    setPath(draft, el.dataset.path, el.dataset.type === 'int' ? Number(el.value) : el.value);
+    if (el.dataset.path === 'template' || el.dataset.path === 'system') renderPlaceholders();
+  } else if (el.dataset.var !== undefined) {
+    const v = draft.variables[Number(el.dataset.var)];
+    if (el.dataset.field === 'required') v.required = el.checked; else v[el.dataset.field] = el.value;
+    if (el.dataset.field === 'name') { renderPlaceholders(); renderVars(); }
+  } else if (el.id === 'f-outformat') {
+    const f = el.value;
+    if (f === 'none') delete draft.output;
+    else draft.output = f === 'json' ? { format: 'json', schema: draft.output?.schema || { type: 'object' } } : { format: 'text' };
+    $('#schemaWrap').hidden = f !== 'json';
+    if (f === 'json') $('#f-schema').value = JSON.stringify(draft.output.schema, null, 2);
+  } else if (el.id === 'f-schema') {
+    try { draft.output.schema = JSON.parse(el.value); el.style.borderColor = ''; }
+    catch { el.style.borderColor = 'var(--bad)'; draft.output.schema = '__invalid__'; }
+  }
+  updateDirty();
+});
+$('#editor').addEventListener('change', e => { if (e.target.matches('select[data-path], input[type=checkbox]')) e.target.dispatchEvent(new Event('input', { bubbles: true })); });
+
+$('#editor').addEventListener('click', async e => {
+  const t = e.target;
+  if (t.id === 'saveBtn') return save();
+  if (t.id === 'revertBtn') { if (!isDirty() || confirm('捨棄所有尚未儲存的修改？')) { draft = structuredClone(saved); renderEditor(); renderVars(); } return; }
+  if (t.id === 'addVar') { draft.variables.push({ name: '', label: '', required: false, example: '' }); renderVarRows(); updateDirty(); return; }
+  if (t.dataset.del !== undefined) { draft.variables.splice(Number(t.dataset.del), 1); renderVarRows(); renderPlaceholders(); renderVars(); updateDirty(); return; }
+  if (t.classList.contains('undeclared')) {
+    draft.variables.push({ name: t.dataset.name, label: '', required: false, example: '' });
+    renderVarRows(); renderPlaceholders(); renderVars(); updateDirty(); return;
+  }
+  if (t.classList.contains('chip') && t.dataset.name) insertAtCursor(`{{${t.dataset.name}}}`);
+});
+
+function insertAtCursor(text) {
+  const ta = $('#f-template');
+  const s = ta.selectionStart, en = ta.selectionEnd;
+  ta.value = ta.value.slice(0, s) + text + ta.value.slice(en);
+  ta.focus(); ta.selectionStart = ta.selectionEnd = s + text.length;
+  ta.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function renderVarRows() {
+  $('#varRows').innerHTML = draft.variables.map((v, i) => `
+    <tr>
+      <td><input type="text" data-var="${i}" data-field="name" value="${esc(v.name)}" style="font-family:var(--mono)" aria-label="變數名稱"></td>
+      <td><input type="text" data-var="${i}" data-field="label" value="${esc(v.label)}" aria-label="顯示名稱"></td>
+      <td class="c"><input type="checkbox" data-var="${i}" data-field="required" ${v.required ? 'checked' : ''} aria-label="必填"></td>
+      <td><input type="text" data-var="${i}" data-field="example" value="${esc(v.example)}" aria-label="測試範例"></td>
+      <td class="c"><button class="btn icon" type="button" data-del="${i}" aria-label="刪除變數">✕</button></td>
+    </tr>`).join('');
+}
+
+function renderPlaceholders() {
+  const used = new Set([...(draft.system || '').matchAll(PH), ...(draft.template || '').matchAll(PH)].map(m => m[1]));
+  const declared = new Set(draft.variables.map(v => v.name));
+  const chips = [...declared].filter(Boolean).map(n => `<span class="chip" data-name="${esc(n)}" title="點一下插入到指令內容">{{${esc(n)}}}</span>`);
+  const missing = [...used].filter(n => !declared.has(n)).map(n => `<span class="chip undeclared" data-name="${esc(n)}" title="指令有用到但未宣告，點一下加入變數">＋ {{${esc(n)}}}</span>`);
+  $('#placeholders').innerHTML = missing.join('') + chips.join('');
+}
+
+function updateDirty() {
+  const dirty = isDirty();
+  $('#saveBtn').disabled = !dirty;
+  setStatus(dirty ? '有尚未儲存的修改' : '已與檔案同步', dirty ? 'dirty' : 'ok');
+}
+
+async function save() {
+  if (draft.output?.schema === '__invalid__') { setStatus('JSON 結構格式錯誤，無法儲存', 'bad'); return; }
+  $('#saveBtn').disabled = true;
+  setStatus('儲存中…');
+  $('#errors').innerHTML = '';
+  try {
+    const { prompt } = await api('PUT', '/api/prompts/' + draft.id, { prompt: draft, expectedVersion: saved.version });
+    saved = prompt; draft = structuredClone(prompt);
+    renderEditor();
+    setStatus(`已儲存為第 ${prompt.version} 版，檔案已更新`, 'ok');
+    await loadList(prompt.id);
+    loadHistory();
+  } catch (err) {
+    if (err.status === 422) $('#errors').innerHTML = (err.data.details || [err.message]).map(d => `<li>${esc(d)}</li>`).join('');
+    if (err.status === 409) setStatus('檔案已被其他人更新：請先複製你的修改，再重新選取此項目載入最新版', 'bad');
+    else setStatus('儲存失敗：' + err.message, 'bad');
+    $('#saveBtn').disabled = false;
+  }
+}
+
+async function loadHistory() {
+  const sel = $('#history');
+  if (!sel) return;
+  const { versions } = await api('GET', `/api/prompts/${draft.id}/history`);
+  sel.innerHTML = `<option value="">歷史版本（${versions.length}）</option>` + versions.map(v =>
+    `<option value="${v.version}">第 ${v.version} 版 · ${esc(new Date(v.updatedAt).toLocaleString('zh-TW'))}</option>`).join('');
+  sel.onchange = async () => {
+    if (!sel.value) return;
+    if (isDirty() && !confirm('載入歷史版本會取代目前未儲存的修改，確定？')) { sel.value = ''; return; }
+    const { prompt } = await api('GET', `/api/prompts/${draft.id}/history/${sel.value}`);
+    draft = { ...prompt, id: saved.id, version: saved.version, updatedAt: saved.updatedAt };
+    renderEditor(); renderVars(); loadHistory();
+    setStatus(`已載入第 ${prompt.version} 版的內容，按「儲存」才會寫回檔案`, 'dirty');
+  };
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 's') { e.preventDefault(); if (isDirty()) save(); }
+});
+window.addEventListener('beforeunload', e => { if (isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
+// ---- 預覽 ----
+function renderVars(missing = []) {
+  const values = testValues[draft.id] = testValues[draft.id] || {};
+  $('#vars').innerHTML = draft.variables.filter(v => v.name).map(v => {
+    if (!(v.name in values)) values[v.name] = v.example || '';
+    const long = (values[v.name] || '').length > 40;
+    const input = long
+      ? `<textarea rows="3" data-test="${esc(v.name)}">${esc(values[v.name])}</textarea>`
+      : `<input type="text" data-test="${esc(v.name)}" value="${esc(values[v.name])}">`;
+    return `<div class="${missing.includes(v.name) ? 'missing' : ''}"><label>${esc(v.label || v.name)}${v.required ? ' *' : ''} <span style="font-family:var(--mono)">${esc(v.name)}</span></label>${input}</div>`;
+  }).join('') || '<div class="hint">這個 prompt 沒有變數</div>';
+}
+$('#vars').addEventListener('input', e => { if (e.target.dataset.test) testValues[draft.id][e.target.dataset.test] = e.target.value; });
+
+function nest(flat) {
+  const out = {};
+  for (const [k, v] of Object.entries(flat)) if (v !== '') setPath(out, k, v);
+  return out;
+}
+
+$('#renderBtn').addEventListener('click', async () => {
+  const st = $('#renderStatus');
+  st.className = 'status'; st.textContent = '組裝中…';
+  try {
+    const values = testValues[draft.id] || {};
+    const data = await api('POST', `/api/prompts/${draft.id}/render`, { prompt: draft, variables: nest(values), allowMissing: true });
+    lastRender = data;
+    renderVars(data.missing);
+    st.className = 'status ' + (data.missing.length ? 'bad' : 'ok');
+    st.textContent = data.missing.length ? `缺少必要變數：${data.missing.join('、')}（正式呼叫時會被拒絕）` : '組裝完成';
+    showOutput();
+  } catch (err) {
+    st.className = 'status bad';
+    st.textContent = err.data?.details ? '內容未通過驗證：' + err.data.details.join('；') : err.message;
+  }
+});
+
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll('.tabs button').forEach(x => x.classList.toggle('active', x === b));
+  showOutput();
+}));
+
+function showOutput() {
+  if (!lastRender) return;
+  $('#output').textContent = tab === 'request' ? JSON.stringify(lastRender.request, null, 2) : lastRender.compiled;
+}
+
+loadList().catch(err => { $('#editor').innerHTML = `<div class="empty">無法連到伺服器：${esc(err.message)}</div>`; });
+</script>
+</body>
+</html>
