@@ -16,6 +16,8 @@ const { createSigner } = require('./media/signed');
 const { createStep2Service, registerStep2Routes } = require('./steps/step2');
 const { createStep3Service, registerStep3Routes } = require('./steps/step3');
 const { createStep4Service, registerStep4Routes } = require('./steps/step4');
+const { createStep5Service, registerStep5Routes } = require('./steps/step5');
+const { createJobs } = require('./jobs');
 const { DEFAULTS } = require('./cost/prices');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -35,6 +37,7 @@ function createApp(options = {}) {
   const ctx = { config, router, store, clock };
   // 依相依順序建立服務（後面的服務會用到前面的）。
   ctx.temples = templeDb(options.templeCsv);
+  ctx.jobs = createJobs();
   ctx.signer = createSigner({ clock, ttlSeconds: options.urlTtlSeconds || 3600 });
   ctx.present = value => present(value, ctx.signer);
   ctx.prompts = options.prompts || createPromptService(options.promptOptions);
@@ -54,10 +57,12 @@ function createApp(options = {}) {
   ctx.step4 = createStep4Service(ctx);
   ctx.videos.hooks.before[4] = v => ctx.step4.lock(v);
   ctx.videos.hooks.after[4] = v => ctx.step4.syncSeries(v);
+  ctx.step5 = createStep5Service(ctx);
   // 預估費用：GET /api/videos/:id/estimate/:action
   ctx.estimators = {
     script: id => ctx.step3.estimate(id),
     characters: id => ctx.step4.estimate(id),
+    frames: id => ctx.step5.estimate(id),
   };
 
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
@@ -69,6 +74,7 @@ function createApp(options = {}) {
   registerStep2Routes(router, ctx);
   registerStep3Routes(router, ctx);
   registerStep4Routes(router, ctx);
+  registerStep5Routes(router, ctx);
   router.get('/api/videos/:id/estimate/:action', ({ params }) => {
     const estimator = ctx.estimators[params.action];
     if (!estimator) throw notFound('沒有這個預估項目');
@@ -124,7 +130,10 @@ function createApp(options = {}) {
   return {
     server,
     ctx,
-    close: () => new Promise(resolve => { server.closeAllConnections?.(); server.close(() => resolve()); }),
+    close: async () => {
+      await ctx.jobs.idle();
+      await new Promise(resolve => { server.closeAllConnections?.(); server.close(() => resolve()); });
+    },
   };
 }
 
