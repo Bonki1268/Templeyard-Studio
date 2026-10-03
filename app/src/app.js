@@ -13,6 +13,7 @@ const { createVideoService, registerVideoRoutes } = require('./videos');
 const { createPhotoService, registerPhotoRoutes } = require('./photos');
 const { createDetector } = require('./media/deidentify');
 const { createSigner } = require('./media/signed');
+const { createStep2Service, registerStep2Routes } = require('./steps/step2');
 const { DEFAULTS } = require('./cost/prices');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -30,30 +31,31 @@ function createApp(options = {}) {
   const router = new Router();
   const store = new Store(config.dataDir, { clock });
   const ctx = { config, router, store, clock };
-  ctx.series = createSeriesService(ctx);
-  ctx.videos = createVideoService(ctx);
+  // 依相依順序建立服務（後面的服務會用到前面的）。
+  ctx.temples = templeDb(options.templeCsv);
   ctx.signer = createSigner({ clock, ttlSeconds: options.urlTtlSeconds || 3600 });
   ctx.present = value => present(value, ctx.signer);
-  ctx.detector = createDetector(config.detector);
-  ctx.photos = createPhotoService(ctx);
   ctx.prompts = options.prompts || createPromptService(options.promptOptions);
   ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output });
+  ctx.detector = createDetector(config.detector);
   ctx.ledger = createLedger({
     store,
     capOf: options.costCapOf || (videoId => store.get('videos', videoId)?.costCap ?? DEFAULTS.costCap),
     threshold: options.costThreshold ?? DEFAULTS.threshold,
   });
   ctx.generations = createGenerationService(ctx);
-
-  const temples = templeDb(options.templeCsv);
-  ctx.temples = temples;
+  ctx.series = createSeriesService(ctx);
+  ctx.videos = createVideoService(ctx);
+  ctx.photos = createPhotoService(ctx);
+  ctx.step2 = createStep2Service(ctx);
 
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
-  registerTempleRoutes(router, temples);
+  registerTempleRoutes(router, ctx.temples);
   registerSeriesRoutes(router, ctx);
   registerGenerationRoutes(router, ctx);
   registerVideoRoutes(router, ctx);
   registerPhotoRoutes(router, ctx);
+  registerStep2Routes(router, ctx);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -108,13 +110,13 @@ function createApp(options = {}) {
   };
 }
 
-// API 回應前的整理：有 file（media 相對路徑）的物件加上短期網址，移除原圖路徑。
+// API 回應前的整理：有 file（media 相對路徑）的物件加上短期網址，移除原圖路徑（privateFile）。
 function present(value, signer) {
   if (Array.isArray(value)) return value.map(v => present(v, signer));
   if (!value || typeof value !== 'object') return value;
   const out = {};
   for (const [k, v] of Object.entries(value)) {
-    if (k === 'original') continue;
+    if (k === 'privateFile') continue;
     out[k] = present(v, signer);
   }
   if (typeof value.file === 'string' && !path.isAbsolute(value.file)) out.url = signer.url(value.file);

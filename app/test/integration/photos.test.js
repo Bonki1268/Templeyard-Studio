@@ -105,10 +105,10 @@ test('場景：原圖保持私有，無法經由網址取得', async t => {
   const video = (await s.get(`/api/videos/${videoId}`)).data.video;
   const json = JSON.stringify(video);
   assert.ok(!json.includes('private'), '回應不應含私有路徑');
-  assert.ok(!('original' in video.photos[0]));
+  assert.ok(!('privateFile' in video.photos[0]));
   const stored = s.app.ctx.store.get('videos', videoId).photos[0];
-  assert.ok(fs.existsSync(path.join(s.app.ctx.config.privateDir, stored.original)), '原圖保存在私有資料夾');
-  for (const url of [`/media/../private/${stored.original}`, `/media/${encodeURIComponent('../private/' + stored.original)}`, `/private/${stored.original}`]) {
+  assert.ok(fs.existsSync(path.join(s.app.ctx.config.privateDir, stored.privateFile)), '原圖保存在私有資料夾');
+  for (const url of [`/media/../private/${stored.privateFile}`, `/media/${encodeURIComponent('../private/' + stored.privateFile)}`, `/private/${stored.privateFile}`]) {
     const r = await s.get(url);
     assert.notEqual(r.status, 200, url);
   }

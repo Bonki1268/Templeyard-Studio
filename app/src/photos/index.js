@@ -31,7 +31,7 @@ function createPhotoService({ store, videos, config, detector, clock }) {
     const rel = `videos/${videoId}/photos/${photo.id}-masked-v${version}.jpg`;
     const out = path.join(config.mediaDir, rel);
     fs.mkdirSync(path.dirname(out), { recursive: true });
-    await maskImage(path.join(config.privateDir, photo.original), out, regions);
+    await maskImage(path.join(config.privateDir, photo.privateFile), out, regions);
     return { file: rel, maskVersion: version };
   }
 
@@ -42,11 +42,11 @@ function createPhotoService({ store, videos, config, detector, clock }) {
       const video = videos.get(videoId);
       if (active(video).length >= MAX_PHOTOS) throw unprocessable('too_many_photos', `每支影片最多 ${MAX_PHOTOS} 張照片`);
       const id = store.newId();
-      const original = `videos/${videoId}/photos/${id}${ext}`;
-      const originalPath = path.join(config.privateDir, original);
+      const privateFile = `videos/${videoId}/photos/${id}${ext}`;
+      const originalPath = path.join(config.privateDir, privateFile);
       fs.mkdirSync(path.dirname(originalPath), { recursive: true });
       fs.writeFileSync(originalPath, buffer);
-      const photo = { id, filename: filename || `照片${ext}`, description: '', original, status: 'processing', regions: [], log: [] };
+      const photo = { id, filename: filename || `照片${ext}`, description: '', privateFile, status: 'processing', regions: [], log: [] };
       try {
         const found = await detector.detect(originalPath, { filename: photo.filename });
         photo.regions = found.map(r => ({ id: store.newId(), ...r, enabled: true, source: 'auto' }));
