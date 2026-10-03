@@ -51,14 +51,14 @@ function createVideoService({ store, series }) {
   };
 }
 
-function registerVideoRoutes(router, { videos, ledger }) {
-  router.post('/api/series/:id/videos', ({ params }) => new Reply(201, { video: videos.create(params.id) }));
-  router.get('/api/videos/:id', ({ params }) => ({ video: videos.get(params.id), cost: ledger.summary(params.id) }));
+function registerVideoRoutes(router, { videos, ledger, present }) {
+  router.post('/api/series/:id/videos', ({ params }) => new Reply(201, { video: present(videos.create(params.id)) }));
+  router.get('/api/videos/:id', ({ params }) => ({ video: present(videos.get(params.id)), cost: ledger.summary(params.id) }));
   router.post('/api/videos/:id/steps/:step/confirm', ({ params }) => {
     const step = Number(params.step);
     if (!wf.STEPS.includes(step)) throw notFound('沒有這個步驟');
     videos.get(params.id);
-    return { video: videos.confirm(params.id, step) };
+    return { video: present(videos.confirm(params.id, step)) };
   });
   router.get('/api/videos/:id/confirmations', ({ params }) => { videos.get(params.id); return { confirmations: videos.confirmations(params.id) }; });
 }

@@ -10,7 +10,7 @@ function tempDir(prefix = 'templeyard-') {
 
 async function startApp(options = {}) {
   const dataDir = options.dataDir || tempDir();
-  const app = createApp({ dataDir, ...options });
+  const app = createApp({ dataDir, detector: 'fake', output: { width: 320, height: 180, fps: 24 }, ...options });
   await new Promise(resolve => app.server.listen(0, '127.0.0.1', resolve));
   const base = `http://127.0.0.1:${app.server.address().port}`;
   const request = async (method, url, body, headers = {}) => {

@@ -17,6 +17,6 @@ module.exports = defineConfig({
     command: 'node server.js',
     url: `http://127.0.0.1:${PORT}/api/health`,
     reuseExistingServer: false,
-    env: { PORT: String(PORT), DATA_DIR: dataDir, AI_PROVIDER: 'fake', E2E: '1' },
+    env: { PORT: String(PORT), DATA_DIR: dataDir, AI_PROVIDER: 'fake', DETECTOR: 'fake', E2E: '1' },
   },
 });

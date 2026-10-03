@@ -10,6 +10,9 @@ const { createProviders } = require('./ai');
 const { createGenerationService, registerGenerationRoutes } = require('./ai/generation');
 const { createLedger } = require('./cost/ledger');
 const { createVideoService, registerVideoRoutes } = require('./videos');
+const { createPhotoService, registerPhotoRoutes } = require('./photos');
+const { createDetector } = require('./media/deidentify');
+const { createSigner } = require('./media/signed');
 const { DEFAULTS } = require('./cost/prices');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -19,6 +22,7 @@ function createApp(options = {}) {
     dataDir: options.dataDir || path.join(__dirname, '..', 'data'),
     aiProvider: options.aiProvider || process.env.AI_PROVIDER || 'fake',
     output: { width: 1920, height: 1080, fps: 24, ...(options.output || {}) },
+    detector: options.detector || process.env.DETECTOR || 'auto',
   };
   config.mediaDir = path.join(config.dataDir, 'media');
   config.privateDir = path.join(config.dataDir, 'private');
@@ -28,6 +32,10 @@ function createApp(options = {}) {
   const ctx = { config, router, store, clock };
   ctx.series = createSeriesService(ctx);
   ctx.videos = createVideoService(ctx);
+  ctx.signer = createSigner({ clock, ttlSeconds: options.urlTtlSeconds || 3600 });
+  ctx.present = value => present(value, ctx.signer);
+  ctx.detector = createDetector(config.detector);
+  ctx.photos = createPhotoService(ctx);
   ctx.prompts = options.prompts || createPromptService(options.promptOptions);
   ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output });
   ctx.ledger = createLedger({
@@ -45,13 +53,13 @@ function createApp(options = {}) {
   registerSeriesRoutes(router, ctx);
   registerGenerationRoutes(router, ctx);
   registerVideoRoutes(router, ctx);
+  registerPhotoRoutes(router, ctx);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
     try {
-      if (!url.pathname.startsWith('/api/') && !url.pathname.startsWith('/media/')) {
-        return serveStatic(res, url.pathname);
-      }
+      if (url.pathname.startsWith('/media/')) return serveMedia(res, url);
+      if (!url.pathname.startsWith('/api/')) return serveStatic(res, url.pathname);
       const found = router.match(req.method, url.pathname);
       if (!found.route) {
         if (found.pathMatched) throw new HttpError(405, 'method_not_allowed', '不支援的操作');
@@ -72,6 +80,20 @@ function createApp(options = {}) {
     }
   });
 
+  // 只提供 media 資料夾內、簽章有效且未過期的檔案；原圖在 private 資料夾，沒有任何網址可取得。
+  function serveMedia(res, url) {
+    let rel;
+    try { rel = decodeURIComponent(url.pathname.slice('/media/'.length)); } catch { throw notFound('找不到檔案'); }
+    const file = path.normalize(path.join(config.mediaDir, rel));
+    if (!file.startsWith(config.mediaDir + path.sep)) throw notFound('找不到檔案');
+    if (!ctx.signer.verify(rel, url.searchParams.get('exp'), url.searchParams.get('sig'))) {
+      throw new HttpError(403, 'expired_url', '網址已過期或無效，請重新整理頁面');
+    }
+    const headers = { 'Cache-Control': 'private, max-age=600' };
+    if (url.searchParams.get('download')) headers['Content-Disposition'] = `attachment; filename*=UTF-8''${encodeURIComponent(url.searchParams.get('download'))}`;
+    sendFile(res, file, headers);
+  }
+
   function serveStatic(res, pathname) {
     const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
     const file = path.normalize(path.join(PUBLIC_DIR, rel));
@@ -86,4 +108,17 @@ function createApp(options = {}) {
   };
 }
 
-module.exports = { createApp };
+// API 回應前的整理：有 file（media 相對路徑）的物件加上短期網址，移除原圖路徑。
+function present(value, signer) {
+  if (Array.isArray(value)) return value.map(v => present(v, signer));
+  if (!value || typeof value !== 'object') return value;
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    if (k === 'original') continue;
+    out[k] = present(v, signer);
+  }
+  if (typeof value.file === 'string' && !path.isAbsolute(value.file)) out.url = signer.url(value.file);
+  return out;
+}
+
+module.exports = { createApp, present };
