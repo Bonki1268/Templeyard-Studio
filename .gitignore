@@ -7,3 +7,8 @@ node_modules/
 .claude/hooks/.nudges
 .claude/STOP
 .claude/settings.local.json
+
+# 系統執行資料與測試產物
+app/data/
+app/test-results/
+app/playwright-report/
