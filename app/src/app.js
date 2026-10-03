@@ -5,6 +5,9 @@ const { registerTempleRoutes, templeDb } = require('./temples/search');
 const { Router, Reply, sendJson, sendError, sendFile, readJson, readRaw, notFound, HttpError } = require('./http');
 const { Store } = require('./store/store');
 const { createSeriesService, registerSeriesRoutes } = require('./series');
+const { createPromptService } = require('./prompts');
+const { createProviders } = require('./ai');
+const { createGenerationService, registerGenerationRoutes } = require('./ai/generation');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -12,12 +15,18 @@ function createApp(options = {}) {
   const config = {
     dataDir: options.dataDir || path.join(__dirname, '..', 'data'),
     aiProvider: options.aiProvider || process.env.AI_PROVIDER || 'fake',
+    output: { width: 1920, height: 1080, fps: 24, ...(options.output || {}) },
   };
+  config.mediaDir = path.join(config.dataDir, 'media');
+  config.privateDir = path.join(config.dataDir, 'private');
   const clock = options.clock || (() => new Date());
   const router = new Router();
   const store = new Store(config.dataDir, { clock });
   const ctx = { config, router, store, clock };
   ctx.series = createSeriesService(ctx);
+  ctx.prompts = options.prompts || createPromptService(options.promptOptions);
+  ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output });
+  ctx.generations = createGenerationService(ctx);
 
   const temples = templeDb(options.templeCsv);
   ctx.temples = temples;
@@ -25,6 +34,7 @@ function createApp(options = {}) {
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
   registerTempleRoutes(router, temples);
   registerSeriesRoutes(router, ctx);
+  registerGenerationRoutes(router, ctx);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
