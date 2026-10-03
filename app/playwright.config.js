@@ -12,7 +12,7 @@ module.exports = defineConfig({
   timeout: 120_000,
   workers: 1,
   reporter: [['list']],
-  use: { baseURL: `http://127.0.0.1:${PORT}`, acceptDownloads: true, viewport: { width: 1280, height: 900 } },
+  use: { actionTimeout: 15_000, baseURL: `http://127.0.0.1:${PORT}`, acceptDownloads: true, viewport: { width: 1280, height: 900 } },
   webServer: {
     command: 'node server.js',
     url: `http://127.0.0.1:${PORT}/api/health`,

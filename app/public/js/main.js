@@ -2,10 +2,12 @@
 import { h, mount } from './ui.js';
 import { homePage } from './pages/home.js';
 import { seriesPage } from './pages/series.js';
+import { videoPage } from './pages/video.js';
 
 const routes = [
   [/^#?\/?$/, () => homePage()],
   [/^#\/series\/([^/]+)$/, m => seriesPage(m[1])],
+  [/^#\/videos\/([^/]+)\/([2-6])$/, m => videoPage(m[1], m[2])],
 ];
 
 async function render() {
