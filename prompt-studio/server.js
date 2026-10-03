@@ -165,7 +165,7 @@ async function handle(req, res) {
     return send(res, 200, { versions: await history(id) });
   }
 
-  // POST /api/prompts/:id/render  body: { variables, prompt? }
+  // POST /api/prompts/:id/render  body: { variables, prompt?, model? }
   // prompt 可帶入未儲存的草稿，用於編輯頁預覽；系統呼叫時只帶 variables。
   if (action === 'render' && req.method === 'POST') {
     const body = await readBody(req);
@@ -173,7 +173,7 @@ async function handle(req, res) {
     if (!p) return fail(res, 404, 'not_found', `找不到 prompt：${id}`);
     const errors = validate(p);
     if (errors.length) return fail(res, 422, 'invalid_prompt', '內容未通過驗證', { details: errors });
-    const { missing, request } = render(p, body.variables || {});
+    const { missing, request } = render(p, body.variables || {}, { model: body.model });
     if (missing.length && !body.allowMissing) {
       return fail(res, 422, 'missing_variables', `缺少必要變數：${missing.join('、')}`, { missing, request });
     }

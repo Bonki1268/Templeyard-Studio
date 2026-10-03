@@ -12,7 +12,7 @@
 - **問題**：需要 Higgsfield 的 API 金鑰、API 文件（端點、非同步任務查詢方式），以及圖片模型與影片模型（Seedance 2.0）的正式名稱與價格。
 - **選項**：(a) 提供 API 金鑰與文件，由系統直接呼叫；(b) 若沒有公開 API，只能手動在 Higgsfield 網站生成後上傳結果。
 - **建議**：(a)。轉接層已預留介面，只要補上 provider。
-- **目前預設**：假實作；`prompt-studio/prompts/` 中圖片、影片節點的 `target.model` 先填 `higgsfield/…` 佔位名稱。
+- **目前預設**：假實作；`prompt-studio/prompts/` 中圖片、影片節點的 `target.model` 維持空白（使用預設模型），畫面比例已改為 16:9。`shot-video.json` 已放入 `seedance-2.0` 與 `kling-2.1` 兩套模型專用寫法（`modelRules`），確定模型名稱後把 `target.model` 填成對應的名稱即可套用。
 
 ## 3. 價格表、每支影片上限與單筆門檻
 - **問題**：成本控管需要各服務的單價，規格書沒有數字。

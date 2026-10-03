@@ -3,14 +3,14 @@
   "step": 3,
   "name": "故事與分鏡腳本",
   "description": "步驟 3：以廣告編劇角度產生廣告腳本並拆成分鏡。",
-  "version": 1,
-  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-10-03T16:23:45.624Z",
   "target": {
     "kind": "text",
     "model": ""
   },
-  "system": "你是觀光廣告編劇，負責把地方故事寫成短影音廣告腳本並拆成分鏡。每個分鏡要能用一張圖與一段短影片呈現。規則：只能使用下方提供的寺廟資料與使用者故事，不可自行補寫歷史年代、人物或傳說；不得出現對神明不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾臉孔。",
-  "template": "請為以下內容寫一支 {{series.duration}} 秒的直式短影音廣告腳本，並拆成分鏡。\n\n寺廟：{{temple.name}}（{{temple.district}}，主祀{{temple.deity}}，創建於{{temple.builtYear}}）\n系列風格：{{series.style}}\n影片方向：{{series.direction}}\n系列共同角色：{{characters}}\n使用者上傳的照片：{{photos}}\n\n故事：\n{{story}}\n\n要求：各分鏡秒數加總等於 {{series.duration}} 秒；每格寫出場景、角色動作、鏡頭運動、旁白與字幕；場景盡量對應使用者上傳的照片。",
+  "system": "你是觀光廣告編劇，負責把地方故事寫成 16:9 橫式短影音廣告腳本並拆成分鏡。每個分鏡要能用一張圖與一段短影片呈現；遠景（廟宇全景）、中景（角色與場景）、特寫（臉部、手部、照片與物件）交錯使用。\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "template": "請為以下內容寫一支 {{series.duration}} 秒的 16:9 橫式觀光短影音廣告腳本，並拆成 {{shotCount}} 格分鏡。\n\n寺廟：{{temple.name}}（{{temple.district}}，主祀{{temple.deity}}，創建於{{temple.builtYear}}）\n寺廟地址：{{temple.address}}\n寺廟歷史與簡介（使用者提供）：{{temple.history}}\n系列風格：{{series.style}}\n影片方向：{{series.direction}}\n系列共同角色：{{characters}}\n使用者上傳的照片：{{photos}}\n\n故事：\n{{story}}\n\n要求：\n1. 先寫完整的廣告腳本（adCopy），再拆成分鏡（shots）。\n2. 各分鏡秒數加總等於 {{series.duration}} 秒，每格約 2～4 秒。\n3. 每格寫出：場景、對應照片編號（photoIndex，從 1 起算，沒有對應時省略）、景別（遠景／中景／特寫）、構圖、運鏡、轉場、鏡頭意圖、敘事角色（開場／鋪陳／轉折／高潮／收尾）、角色動作、台詞或旁白（line）、說話角色（speaker，旁白填「旁白」）、繁體中文字幕（subtitle）。\n4. 列出腳本需要的角色（characters）；系列共同角色沿用原名稱。\n5. 使用者調整指令：{{instruction}}",
   "variables": [
     {
       "name": "temple.name",
@@ -71,6 +71,30 @@
       "label": "故事（已確認版）",
       "required": true,
       "example": "老一輩說，當年移民渡海來台，帶著定光古佛的香火在淡水落腳。"
+    },
+    {
+      "name": "temple.address",
+      "label": "寺廟地址",
+      "required": false,
+      "example": "新北市淡水區鄧公里鄧公路15號"
+    },
+    {
+      "name": "temple.history",
+      "label": "寺廟歷史與簡介（使用者貼上）",
+      "required": false,
+      "example": "清道光年間由汀州移民興建。"
+    },
+    {
+      "name": "shotCount",
+      "label": "分鏡格數",
+      "required": true,
+      "example": "8"
+    },
+    {
+      "name": "instruction",
+      "label": "使用者調整指令",
+      "required": false,
+      "example": "開頭節奏再快一點"
     }
   ],
   "output": {
@@ -79,6 +103,8 @@
       "type": "object",
       "required": [
         "title",
+        "adCopy",
+        "characters",
         "shots"
       ],
       "properties": {
@@ -88,6 +114,27 @@
         "logline": {
           "type": "string"
         },
+        "adCopy": {
+          "type": "string",
+          "description": "完整廣告腳本"
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
         "shots": {
           "type": "array",
           "items": {
@@ -96,8 +143,10 @@
               "index",
               "seconds",
               "scene",
+              "shotSize",
               "action",
-              "camera"
+              "camera",
+              "subtitle"
             ],
             "properties": {
               "index": {
@@ -107,22 +156,57 @@
                 "type": "number"
               },
               "scene": {
-                "type": "string"
+                "type": "string",
+                "description": "場景"
               },
               "photoIndex": {
-                "type": "integer"
+                "type": "integer",
+                "description": "對應照片編號"
               },
-              "action": {
-                "type": "string"
+              "shotSize": {
+                "type": "string",
+                "enum": [
+                  "遠景",
+                  "中景",
+                  "特寫"
+                ],
+                "description": "景別"
+              },
+              "composition": {
+                "type": "string",
+                "description": "構圖"
               },
               "camera": {
-                "type": "string"
+                "type": "string",
+                "description": "運鏡"
               },
-              "narration": {
-                "type": "string"
+              "transition": {
+                "type": "string",
+                "description": "轉場"
+              },
+              "intent": {
+                "type": "string",
+                "description": "鏡頭意圖"
+              },
+              "narrativeRole": {
+                "type": "string",
+                "description": "敘事角色"
+              },
+              "action": {
+                "type": "string",
+                "description": "角色動作"
+              },
+              "line": {
+                "type": "string",
+                "description": "台詞或旁白"
+              },
+              "speaker": {
+                "type": "string",
+                "description": "說話角色"
               },
               "subtitle": {
-                "type": "string"
+                "type": "string",
+                "description": "字幕"
               },
               "characters": {
                 "type": "array",
