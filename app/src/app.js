@@ -9,6 +9,7 @@ const { createPromptService } = require('./prompts');
 const { createProviders } = require('./ai');
 const { createGenerationService, registerGenerationRoutes } = require('./ai/generation');
 const { createLedger } = require('./cost/ledger');
+const { createVideoService, registerVideoRoutes } = require('./videos');
 const { DEFAULTS } = require('./cost/prices');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -26,6 +27,7 @@ function createApp(options = {}) {
   const store = new Store(config.dataDir, { clock });
   const ctx = { config, router, store, clock };
   ctx.series = createSeriesService(ctx);
+  ctx.videos = createVideoService(ctx);
   ctx.prompts = options.prompts || createPromptService(options.promptOptions);
   ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output });
   ctx.ledger = createLedger({
@@ -42,6 +44,7 @@ function createApp(options = {}) {
   registerTempleRoutes(router, temples);
   registerSeriesRoutes(router, ctx);
   registerGenerationRoutes(router, ctx);
+  registerVideoRoutes(router, ctx);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
