@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { startApp } = require('../helpers');
 const { videoAtStep } = require('./scenario');
-const { PRICES } = require('../../src/cost/prices');
 const { probe } = require('../../src/media/ffmpeg');
 
 test('步驟 6 API：分鏡影片', async t => {
+  // 估價以生成解析度計（測試輸出 320×180，生成高度取 min(720, 180) → 480p 價格）
   const s = await startApp();
   t.after(() => s.close());
   const { base, videoId } = await videoAtStep(s, 6);
@@ -17,7 +17,8 @@ test('步驟 6 API：分鏡影片', async t => {
   await t.test('場景：生成影片前先看到預估費用並在超過門檻時需要同意', async () => {
     const r = await s.get(`${base}/estimate/clips`);
     assert.equal(r.data.seconds, 30);
-    assert.equal(r.data.estimate, +(30 * PRICES.video.perSecond).toFixed(4));
+    assert.equal(r.data.billedSeconds, 40, '10 格各 3 秒，每段至少以 4 秒計費');
+    assert.equal(r.data.estimate, +(40 * Math.ceil(854 * 480 * 24 / 1024) * 0.014 / 1000).toFixed(4), '測試輸出 180p 以 480p 計價');
     const denied = await s.post(`${base}/clips/generate`, {});
     assert.equal(denied.status, 402);
     assert.equal(denied.data.error.reason, 'threshold');

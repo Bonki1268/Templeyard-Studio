@@ -2,6 +2,7 @@
 // 流程：本機參考圖以預簽網址上傳 → 估價 → 送出生成（Idempotency-Key）→ 輪詢 status_url → 下載結果到 mediaDir/gen/。
 // 只會上傳呼叫端給的參考圖（去識別後的照片、定裝圖、分鏡圖、精緻圖），原圖不會經過這裡。
 const fs = require('node:fs');
+const { videoTokens, tierFor } = require('../cost/prices');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
@@ -18,7 +19,7 @@ function resolutionFor(height) {
 }
 
 function createHiggsfieldMedia({
-  keyId, keySecret, fetchImpl = fetch, mediaDir, output = { width: 1920, height: 1080, fps: 24 },
+  keyId, keySecret, fetchImpl = fetch, mediaDir, output = { width: 1920, height: 1080, fps: 24 }, videoHeight,
   imageModel = 'xai/grok-imagine-image-2.0', videoModel = 'bytedance/seedance-2.0/image-to-video',
   pollIntervalMs = 2000, maxPollIntervalMs = 10000, timeoutMs = 20 * 60 * 1000,
 }) {
@@ -53,8 +54,15 @@ function createHiggsfieldMedia({
     try {
       const res = await fetchImpl(`${API}/estimate/${endpoint}`, { method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (!res.ok) return undefined;
-      const usd = Number((await res.json()).usd);
-      return Number.isFinite(usd) ? usd : undefined;
+      const data = await res.json();
+      const usd = Number(data.usd);
+      if (Number.isFinite(usd)) return usd;
+      // Seedance 的估價只回傳 token 計價說明：依秒數與解析度換算。
+      if (data.pricing_description && body.duration) {
+        const height = { '480p': 480, '720p': 720, '1080p': 1080, '4k': 2160 }[body.resolution || '720p'] || 720;
+        return +(videoTokens(body.duration, height) * tierFor(height).per1kTokens / 1000).toFixed(4);
+      }
+      return undefined;
     } catch { return undefined; }
   }
 
@@ -144,7 +152,7 @@ function createHiggsfieldMedia({
           image_url: await upload(firstFrame),
           // Seedance 每段至少 4 秒；合成時會裁到分鏡秒數。
           duration: Math.max(4, Math.min(15, Math.ceil(Number(seconds) || 4))),
-          resolution: resolutionFor(output.height),
+          resolution: resolutionFor(videoHeight || output.height),
           generate_audio: Boolean(nativeVoice),
         };
         if (lastFrame) body.end_image_url = await upload(lastFrame);

@@ -3,7 +3,7 @@
 const path = require('node:path');
 const { unprocessable, notFound, Reply } = require('../http');
 const { seriesVars } = require('../videos/vars');
-const { estimateCost, round } = require('../cost/prices');
+const { estimateCost, round, billedSeconds } = require('../cost/prices');
 const wf = require('../videos/workflow');
 const { text } = require('../util');
 
@@ -30,7 +30,7 @@ function createStep6Service({ videos, generations, ledger, store, config, jobs }
     try {
       const { generation, result } = await generations.run({
         videoId: id, step: 6, promptId: 'shot-video', variables, instruction: text(instruction), consent: true,
-        units: { seconds: shot.seconds }, meta: { shotId },
+        units: { seconds: shot.seconds, height: config.videoHeight }, meta: { shotId },
         call: (ai, request) => ai.video.generate({ request, firstFrame, lastFrame: lockLastFrame ? firstFrame : undefined, seconds: shot.seconds, nativeVoice: speaks(shot) }),
       });
       videos.mutate(id, 6, video => {
@@ -63,14 +63,16 @@ function createStep6Service({ videos, generations, ledger, store, config, jobs }
       const v = videos.get(id);
       const shots = pending(v).length ? pending(v) : v.script.shots;
       const seconds = round(shots.reduce((sum, s) => sum + s.seconds, 0));
-      return { action: 'clips', count: shots.length, seconds, estimate: estimateCost('video', { seconds }) };
+      const clips = shots.map(s => s.seconds);
+      return { action: 'clips', count: shots.length, seconds, billedSeconds: clips.reduce((sum, s) => sum + billedSeconds(s), 0),
+        estimate: estimateCost('video', { clips, height: config.videoHeight }) };
     },
 
     generate(id, { consent = false } = {}) {
       const v = videos.get(id);
       wf.assertCanEnter(v, 6);
       const targets = pending(v).filter(s => !['queued', 'running'].includes(v.clips[s.id]?.status));
-      ledger.check(id, estimateCost('video', { seconds: targets.reduce((sum, s) => sum + s.seconds, 0) }), consent);
+      ledger.check(id, estimateCost('video', { clips: targets.map(s => s.seconds), height: config.videoHeight }), consent);
       const saved = videos.mutate(id, 6, video => { for (const s of targets) ensureClip(video, s.id).status = 'queued'; }, { touch: false });
       jobs.start(async () => { for (const s of targets) await generateOne(id, s.id); });
       return saved;
@@ -81,7 +83,7 @@ function createStep6Service({ videos, generations, ledger, store, config, jobs }
       wf.assertCanEnter(v, 6);
       const shot = v.script.shots.find(s => s.id === shotId);
       if (!shot) throw notFound('找不到分鏡');
-      ledger.check(id, estimateCost('video', { seconds: shot.seconds }), consent);
+      ledger.check(id, estimateCost('video', { seconds: shot.seconds, height: config.videoHeight }), consent);
       const saved = videos.mutate(id, 6, video => { ensureClip(video, shotId).status = 'queued'; }, { touch: false });
       jobs.start(() => generateOne(id, shotId, { instruction, lockLastFrame: Boolean(lockLastFrame) }));
       return saved;

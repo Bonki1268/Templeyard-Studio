@@ -1,7 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startApp } = require('../helpers');
-const { estimateCost, PRICES } = require('../../src/cost/prices');
+const { estimateCost, PRICES, videoPerSecond, DEFAULTS } = require('../../src/cost/prices');
 
 const vars = { temple: { name: '鄞山寺' }, series: { style: '寫實' }, story: '渡海來台的故事。' };
 const textCall = (ai, request) => ai.text.generate({ request, variables: vars });
@@ -13,7 +13,7 @@ async function setup(t, options = {}) {
 }
 
 test('場景：生成前可以先看到預估費用', () => {
-  assert.equal(estimateCost('video', { seconds: 4 }), +(4 * PRICES.video.perSecond).toFixed(4));
+  assert.equal(estimateCost('video', { seconds: 4, height: 1080 }), +(4 * videoPerSecond(1080)).toFixed(4));
   assert.equal(estimateCost('image', { count: 8 }), +(8 * PRICES.image.perImage).toFixed(4));
   assert.equal(estimateCost('text'), PRICES.text.perCall);
 });
@@ -53,17 +53,19 @@ test('場景：生成失敗時退回預留金額', async t => {
 });
 
 test('場景：單筆費用超過門檻時需要再次同意', async t => {
+  assert.equal(DEFAULTS.threshold, 5);
+  assert.equal(DEFAULTS.costCap, 20);
   const s = await setup(t);
   const { generations, ai } = s.app.ctx;
   const before = ai.calls.length;
   await assert.rejects(generations.run({
-    videoId: 'v1', step: 2, promptId: 'copy-polish', variables: vars, estimate: 2.5, call: textCall,
+    videoId: 'v1', step: 2, promptId: 'copy-polish', variables: vars, estimate: 5.5, call: textCall,
   }), err => {
     assert.equal(err.status, 402);
     assert.equal(err.code, 'cost_consent_required');
     assert.equal(err.extra.reason, 'threshold');
     assert.match(err.message, /超過單筆門檻/);
-    assert.equal(err.extra.estimate, 2.5);
+    assert.equal(err.extra.estimate, 5.5);
     return true;
   });
   assert.equal(ai.calls.length, before);
@@ -81,6 +83,15 @@ test('場景：累計費用將超過上限時需要再次同意', async t => {
 test('場景：同意後可以繼續生成並記帳', async t => {
   const s = await setup(t);
   const { generations, ledger } = s.app.ctx;
-  await generations.run({ videoId: 'v1', step: 2, promptId: 'copy-polish', variables: vars, estimate: 2.5, consent: true, call: textCall });
-  assert.equal(ledger.summary('v1').spent, 2.5);
+  await generations.run({ videoId: 'v1', step: 2, promptId: 'copy-polish', variables: vars, estimate: 5.5, consent: true, call: textCall });
+  assert.equal(ledger.summary('v1').spent, 5.5);
+});
+
+test('場景：影片費用依解析度計算且每段至少 4 秒', () => {
+  // Seedance：token = 秒數 × 寬 × 高 × 24 ÷ 1024，1080p 每千 token US$0.014
+  assert.equal(videoPerSecond(1080), +(1920 * 1080 * 24 / 1024 * 0.014 / 1000).toFixed(4));
+  assert.equal(estimateCost('video', { seconds: 2.5, height: 1080 }), +(4 * videoPerSecond(1080)).toFixed(4));
+  assert.equal(estimateCost('video', { clips: [2.5, 3, 4.5], height: 1080 }), +((4 + 4 + 5) * videoPerSecond(1080)).toFixed(4));
+  assert.ok(videoPerSecond(720) < videoPerSecond(1080));
+  assert.equal(PRICES.image.perImage, 0.06);
 });

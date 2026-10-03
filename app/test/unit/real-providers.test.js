@@ -168,3 +168,27 @@ test('場景：未設定金鑰時無法以真實服務啟動', () => {
   assert.equal(ai.models.video, 'bytedance/seedance-2.0/image-to-video');
   assert.equal(ai.ruleModels.video, 'seedance-2.0');
 });
+
+test('場景：Seedance 估價只回傳計價說明時依 token 公式計算實際費用', async () => {
+  const dir = tempDir();
+  const { fetchImpl: base } = fakeHiggsfield({ kind: 'video' });
+  const description = 'Token-metered pricing. Billable video tokens = ceil(generated video seconds × output width × output height × 24 fps / 1024). Per 1,000 video tokens: 480p/720p/1080p $0.014, 4K $0.008.';
+  const fetchImpl = async (url, init) => (String(url).includes('/estimate/')
+    ? new Response(JSON.stringify({ type: 'description', pricing_description: description }), { status: 200 })
+    : base(url, init));
+  const media = createHiggsfieldMedia({ ...creds, ...fast, fetchImpl, mediaDir: dir, output: { width: 1920, height: 1080, fps: 24 } });
+  const request = await prompts.render('shot-video', { shot: { index: 1, seconds: 3, action: '走' } });
+  const out = await media.video.generate({ request, firstFrame: refFile(dir, 'f.png'), seconds: 3 });
+  assert.equal(out.cost, +(Math.ceil(4 * 1920 * 1080 * 24 / 1024) * 0.014 / 1000).toFixed(4));
+});
+
+test('場景：分鏡影片以 720p 生成以節省費用，成品仍輸出 1920×1080', async () => {
+  const dir = tempDir();
+  const { calls, fetchImpl } = fakeHiggsfield({ kind: 'video' });
+  const ai = createProviders({ aiProvider: 'real', mediaDir: dir, output: { width: 1920, height: 1080, fps: 24 }, videoHeight: 720,
+    env: { HF_API_KEY_ID: 'a', HF_API_KEY_SECRET: 'b' }, anthropicClient: fakeAnthropic(okMessage({})).client, fetchImpl, pollIntervalMs: 1 });
+  const request = await prompts.render('shot-video', { shot: { index: 1, seconds: 3, action: '走' } });
+  await ai.video.generate({ request, firstFrame: refFile(dir, 'f.png'), seconds: 3 });
+  const body = JSON.parse(calls.find(c => c.url.endsWith('/image-to-video')).body);
+  assert.equal(body.resolution, '720p');
+});

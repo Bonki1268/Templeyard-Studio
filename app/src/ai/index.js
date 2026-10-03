@@ -5,14 +5,14 @@ const { createFakeProviders } = require('./fake');
 const { createClaudeText } = require('./claude');
 const { createHiggsfieldMedia } = require('./higgsfield');
 
-function createRealProviders({ mediaDir, output, env = process.env, anthropicClient, fetchImpl }) {
+function createRealProviders({ mediaDir, output, videoHeight, env = process.env, anthropicClient, fetchImpl, pollIntervalMs }) {
   if (!env.HF_API_KEY_ID || !env.HF_API_KEY_SECRET) {
     throw new Error('真實服務需要設定環境變數 HF_API_KEY_ID、HF_API_KEY_SECRET（Higgsfield），以及 Claude 的 ANTHROPIC_API_KEY（或先執行 ant auth login）');
   }
   const local = createFakeProviders({ mediaDir, output });
   const text = createClaudeText({ client: anthropicClient, model: env.CLAUDE_MODEL, effort: env.CLAUDE_EFFORT || 'high' });
   const media = createHiggsfieldMedia({
-    keyId: env.HF_API_KEY_ID, keySecret: env.HF_API_KEY_SECRET, fetchImpl, mediaDir, output,
+    keyId: env.HF_API_KEY_ID, keySecret: env.HF_API_KEY_SECRET, fetchImpl, mediaDir, output, videoHeight, pollIntervalMs,
     imageModel: env.HIGGSFIELD_IMAGE_MODEL || undefined, videoModel: env.HIGGSFIELD_VIDEO_MODEL || undefined,
   });
   return {

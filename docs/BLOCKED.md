@@ -15,10 +15,10 @@
 - **決定**：使用 Higgsfield API。圖片用 Grok Imagine Image 2.0（支援多張參考圖），影片用 Seedance 2.0 圖生影片。已實作，見 `docs/真實服務接入.md`；需要你在 `.env` 填入 `HF_API_KEY_ID`、`HF_API_KEY_SECRET`。若想改用其他圖片模型（例如 Soul），用環境變數 `HIGGSFIELD_IMAGE_MODEL` 指定。
 - **目前預設**：假實作；`prompt-studio/prompts/` 中圖片、影片節點的 `target.model` 維持空白（使用預設模型），畫面比例已改為 16:9。`shot-video.json` 已放入 `seedance-2.0` 與 `kling-2.1` 兩套模型專用寫法（`modelRules`），確定模型名稱後把 `target.model` 填成對應的名稱即可套用。
 
-## 3. 價格表、每支影片上限與單筆門檻
-- **問題**：成本控管需要各服務的單價，規格書沒有數字。
-- **目前預設**（`app/src/cost/prices.js`，可改）：文字 US$0.01／次、圖片 US$0.04／張、影片 US$0.10／秒、語音 US$0.01／次；每支影片上限 US$20、單筆門檻 US$2。
-- **建議**：拿到 Higgsfield 實際價格後更新價格表；上限可在系列設定中調整。
+## 3. 價格表、每支影片上限與單筆門檻 — ✅ 已決定
+- **價格**（依 Higgsfield 估價端點，2026-10-04）：圖片 Grok Imagine Image 2.0 約 US$0.06／張；影片 Seedance 2.0 以 token 計價（秒數 × 寬 × 高 × 24 ÷ 1024 個 token，480p／720p／1080p 每千 token US$0.014），每段至少 4 秒。720p 約 US$0.30／秒、1080p 約 US$0.68／秒。Claude 依實際用量計算。
+- **決定**：分鏡影片以 **720p** 生成（30 秒成品約 US$12，合成時輸出 1920×1080）；每支影片上限 **US$20**；單筆超過 **US$5** 需再次同意。
+- **調整方式**：`app/src/cost/prices.js`（價格、上限、門檻）；環境變數 `VIDEO_GENERATION_HEIGHT=1080` 可改回 1080p 生成（約 US$27／支，會超過上限並要求再次同意）。
 
 ## 4. 去識別偵測器
 - **問題**：要偵測信眾、路人臉孔與車牌，但「神像臉部不得被遮蔽」，一般人臉偵測器分不出神像與真人。

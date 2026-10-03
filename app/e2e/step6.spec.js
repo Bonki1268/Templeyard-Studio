@@ -8,7 +8,7 @@ test.describe.serial('步驟 6 影片生成', () => {
 
   test('場景：生成分鏡影片前顯示預估費用並需再次同意', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/6`);
-    await page.getByRole('button', { name: /生成分鏡影片（預估 US\$3\.00）/ }).click();
+    await page.getByRole('button', { name: /生成分鏡影片（預估 US\$\d+\.\d\d）/ }).click();
     const dialog = page.getByRole('dialog', { name: '費用確認' });
     await expect(dialog).toContainText('超過單筆門檻');
     await dialog.getByRole('button', { name: '同意並繼續' }).click();

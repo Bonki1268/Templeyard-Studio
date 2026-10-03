@@ -29,7 +29,8 @@ async function main() {
     ]) {
       const res = await fetch(`https://api.higgsfield.ai/estimate/${endpoint}`, { method: 'POST', headers: auth, body: JSON.stringify(body) });
       const data = await res.json().catch(() => ({}));
-      if (res.ok) console.log(`✓ Higgsfield ${name}：每次約 US$${data.usd}（${data.credits} 點）`);
+      if (res.ok && data.usd) console.log(`✓ Higgsfield ${name}：每次約 US$${data.usd}（${data.credits} 點）`);
+      else if (res.ok) console.log(`✓ Higgsfield ${name}：${data.pricing_description || JSON.stringify(data)}`);
       else { ok = false; console.log(`✗ Higgsfield ${name}：${res.status} ${JSON.stringify(data.detail ?? data)}`); }
     }
   }

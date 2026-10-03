@@ -31,6 +31,8 @@ function createApp(options = {}) {
     output: { width: 1920, height: 1080, fps: 24, ...(options.output || {}) },
     detector: options.detector || process.env.DETECTOR || 'auto',
   };
+  // 分鏡影片的生成高度（預設 720p 以節省費用，合成時再輸出成品尺寸）。
+  config.videoHeight = options.videoHeight || Number(process.env.VIDEO_GENERATION_HEIGHT) || Math.min(720, config.output.height);
   config.mediaDir = path.join(config.dataDir, 'media');
   config.privateDir = path.join(config.dataDir, 'private');
   const clock = options.clock || (() => new Date());
@@ -43,7 +45,7 @@ function createApp(options = {}) {
   ctx.signer = createSigner({ clock, ttlSeconds: options.urlTtlSeconds || 3600 });
   ctx.present = value => present(value, ctx.signer);
   ctx.prompts = options.prompts || createPromptService(options.promptOptions);
-  ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output });
+  ctx.ai = options.ai || createProviders({ aiProvider: config.aiProvider, mediaDir: config.mediaDir, output: config.output, videoHeight: config.videoHeight });
   ctx.detector = createDetector(config.detector);
   ctx.ledger = createLedger({
     store,
