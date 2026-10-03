@@ -9,9 +9,9 @@ node -e '
 const fs = require("fs"); const [n, hash] = process.argv.slice(1);
 const file = "docs/PROGRESS.md";
 const lines = fs.readFileSync(file, "utf8").split("\n");
-const i = lines.findIndex(l => new RegExp("^- \\[[ ~]\\] 步驟 " + n + "：").test(l));
+const i = lines.findIndex(l => new RegExp("^- \\[[ ~x]\\] 步驟 " + n + "：").test(l));
 if (i < 0) { console.error("找不到步驟 " + n); process.exit(1); }
-lines[i] = lines[i].replace(/^- \[[ ~]\]/, "- [x]") + "（commit " + hash + "）";
+lines[i] = lines[i].replace(/^- \[[ ~x]\]/, "- [x]").replace(/（commit [0-9a-f]+）$/, "") + "（commit " + hash + "）";
 fs.writeFileSync(file, lines.join("\n"));
 console.log(lines[i]);
 ' "$n" "$hash"

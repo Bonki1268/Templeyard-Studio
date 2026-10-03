@@ -23,7 +23,7 @@ const updates = {
     variables: [...p.variables.filter(x => !['temple.address', 'temple.history', 'shotCount', 'instruction'].includes(x.name)),
       v('temple.address', '寺廟地址', false, '新北市淡水區鄧公里鄧公路15號'),
       v('temple.history', '寺廟歷史與簡介（使用者貼上）', false, '清道光年間由汀州移民興建。'),
-      v('shotCount', '分鏡格數', true, '8'),
+      v('shotCount', '分鏡格數', false, '8'),
       v('instruction', '使用者調整指令', false, '開頭節奏再快一點')],
     output: {
       format: 'json',
