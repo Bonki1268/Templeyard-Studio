@@ -13,4 +13,7 @@ echo "== prompt-studio =="
 echo "== app 單元與整合測試 =="
 (cd app && npm test)
 
+echo "== 端對端測試 =="
+(cd app && npx playwright test)
+
 echo "驗證閘門通過"
