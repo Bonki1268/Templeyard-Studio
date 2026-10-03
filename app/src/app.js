@@ -1,6 +1,7 @@
 // 組裝整個應用：依設定建立各服務，註冊路由，回傳 HTTP 伺服器。
 const http = require('node:http');
 const path = require('node:path');
+const { registerTempleRoutes, templeDb } = require('./temples/search');
 const { Router, sendJson, sendError, sendFile, readJson, readRaw, notFound, HttpError } = require('./http');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
@@ -13,7 +14,11 @@ function createApp(options = {}) {
   const router = new Router();
   const ctx = { config, router };
 
+  const temples = templeDb(options.templeCsv);
+  ctx.temples = temples;
+
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
+  registerTempleRoutes(router, temples);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
