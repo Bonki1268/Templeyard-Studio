@@ -29,8 +29,8 @@ module.exports = { testPhoto, createSeries, createVideo };
 const STORY = '老一輩說，當年移民渡海來台，帶著定光古佛的香火在淡水落腳。後來才有了這座廟。';
 
 // 用 API 把影片推進到指定步驟（各步驟的 UI 測試從這裡開始）。
-async function videoAtStep(request, step) {
-  const series = await createSeries(request);
+async function videoAtStep(request, step, seriesOverrides = {}) {
+  const series = await createSeries(request, seriesOverrides);
   const video = await createVideo(request, series.id);
   const base = `/api/videos/${video.id}`;
   const must = async (res, what) => { if (!res.ok()) throw new Error(`${what}：${res.status()} ${await res.text()}`); return res; };
