@@ -2,7 +2,9 @@
 const http = require('node:http');
 const path = require('node:path');
 const { registerTempleRoutes, templeDb } = require('./temples/search');
-const { Router, sendJson, sendError, sendFile, readJson, readRaw, notFound, HttpError } = require('./http');
+const { Router, Reply, sendJson, sendError, sendFile, readJson, readRaw, notFound, HttpError } = require('./http');
+const { Store } = require('./store/store');
+const { createSeriesService, registerSeriesRoutes } = require('./series');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 
@@ -11,14 +13,18 @@ function createApp(options = {}) {
     dataDir: options.dataDir || path.join(__dirname, '..', 'data'),
     aiProvider: options.aiProvider || process.env.AI_PROVIDER || 'fake',
   };
+  const clock = options.clock || (() => new Date());
   const router = new Router();
-  const ctx = { config, router };
+  const store = new Store(config.dataDir, { clock });
+  const ctx = { config, router, store, clock };
+  ctx.series = createSeriesService(ctx);
 
   const temples = templeDb(options.templeCsv);
   ctx.temples = temples;
 
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
   registerTempleRoutes(router, temples);
+  registerSeriesRoutes(router, ctx);
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, 'http://localhost');
@@ -38,7 +44,8 @@ function createApp(options = {}) {
       };
       const result = await found.route.handler(request);
       if (result === undefined) return; // handler 自己回應（例如檔案下載）
-      sendJson(res, result.__status || 200, result);
+      if (result instanceof Reply) sendJson(res, result.status, result.body);
+      else sendJson(res, 200, result);
     } catch (err) {
       if (res.headersSent) { res.destroy(); return; }
       sendError(res, err);

@@ -15,6 +15,11 @@ const notFound = (message = '找不到資料') => new HttpError(404, 'not_found'
 const badRequest = (message, extra) => new HttpError(400, 'bad_request', message, extra);
 const unprocessable = (code, message, extra) => new HttpError(422, code, message, extra);
 
+// handler 回傳 new Reply(201, body) 可指定狀態碼。
+class Reply {
+  constructor(status, body) { this.status = status; this.body = body; }
+}
+
 function sendJson(res, status, body) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -92,4 +97,4 @@ class Router {
   }
 }
 
-module.exports = { HttpError, notFound, badRequest, unprocessable, sendJson, sendError, sendFile, readJson, readRaw, Router };
+module.exports = { Reply, HttpError, notFound, badRequest, unprocessable, sendJson, sendError, sendFile, readJson, readRaw, Router };
