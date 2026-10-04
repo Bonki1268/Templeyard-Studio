@@ -115,3 +115,25 @@ test('場景：在本機實際以 say 產生可播放的中文語音', { skip: p
   assert.ok(info.duration > 0.5);
   assert.equal(path.extname(out.file), '.wav');
 });
+
+test('場景：指定的聲音不在目前的語音服務時改用自動分配', async () => {
+  const say = fakeSay();
+  const voice = createSayVoice({ mediaDir: tempDir(), run: say.run });
+  assert.ok(voice.voices.length >= 5);
+  for (const v of voice.voices) assert.ok(v.id && v.label, '每個聲音要有代號與中文說明');
+  const chosen = voice.voices.find(v => v.id !== SAY_NARRATOR).id;
+  await voice.synthesize({ text: '我們進去看看。', speaker: '阿明', voice: chosen });
+  assert.equal(say.voiceOf(0), chosen);
+  await voice.synthesize({ text: '小心門檻。', speaker: '阿明', voice: 'zh-TW-YunJheNeural' });
+  await voice.synthesize({ text: '小心門檻！', speaker: '阿明' });
+  assert.equal(say.voiceOf(1), say.voiceOf(2), '不認得的聲音改用依名字自動分配');
+
+  const calls = [];
+  const azure = createAzureVoice({ key: 'k', region: 'eastasia', mediaDir: tempDir(), fetchImpl: async (url, init) => { calls.push(init); return new Response(Buffer.from('RIFF'), { status: 200 }); } });
+  assert.deepEqual(azure.voices.map(v => v.id).sort(), ['zh-TW-HsiaoChenNeural', 'zh-TW-HsiaoYuNeural', 'zh-TW-YunJheNeural']);
+  await azure.synthesize({ text: '一', speaker: '阿明', voice: 'zh-TW-YunJheNeural' });
+  assert.match(calls[0].body, /zh-TW-YunJheNeural/);
+  await azure.synthesize({ text: '二', speaker: '阿明', voice: SAY_NARRATOR });
+  assert.match(calls[1].body, /zh-TW-\w+Neural/, '不認得的聲音改用依名字自動分配');
+  assert.doesNotMatch(calls[1].body, /Meijia/);
+});

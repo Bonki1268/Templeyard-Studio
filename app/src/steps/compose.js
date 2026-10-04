@@ -41,6 +41,13 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
   // 需要語音合成的台詞：旁白一律合成；選「語音合成」時角色台詞也合成。
   const ttsShots = v => v.script.shots.filter(s => s.line && (audioOf(v).voiceMode === 'tts' || !speaks(s)));
 
+  // 角色在角色庫選的聲音：以目前的系列為準（合成前改選也生效），系列已刪除該角色時沿用影片建立時的快照。
+  function voiceFor(v, speaker) {
+    if (!speaker || speaker === '旁白') return '';
+    const byName = list => (list || []).find(c => c.name === speaker)?.voice;
+    return byName(store.get('series', v.seriesId)?.characters) ?? byName(v.series?.characters) ?? '';
+  }
+
   function tracks(v) {
     return [...TRACKS, ...(v.musicUploads || []).map(u => ({ id: u.id, name: u.name, uploaded: true }))];
   }
@@ -98,8 +105,8 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
     const starts = new Map(timeline(shots).map(t => [t.shot.id, t.start]));
     for (const [j, s] of ttsShots(v).entries()) {
       const { result } = await generations.runDirect({
-        videoId: id, step: 7, kind: 'voice', input: { text: s.line, speaker: s.speaker }, units: { count: 1 }, consent: true, meta: { shotId: s.id },
-        call: provider => provider.voice.synthesize({ text: s.line, speaker: s.speaker }),
+        videoId: id, step: 7, kind: 'voice', input: { text: s.line, speaker: s.speaker, voice: voiceFor(v, s.speaker) }, units: { count: 1 }, consent: true, meta: { shotId: s.id },
+        call: provider => provider.voice.synthesize({ text: s.line, speaker: s.speaker, voice: voiceFor(v, s.speaker) }),
       });
       const ti = addInput('-i', result.file);
       const ms = Math.round(starts.get(s.id) * 1000);

@@ -37,14 +37,14 @@ function createGenerationService({ store, prompts, ai, config, ledger }) {
   }
 
   // 不經 prompt 的生成（語音合成、背景音樂），一樣記帳並寫生成紀錄。
-  async function runDirect({ videoId, step, kind, input = {}, units, consent = false, call, meta = {} }) {
+  async function runDirect({ videoId = null, account = videoId, step, kind, input = {}, units, consent = false, call, meta = {} }) {
     const cost = estimateCost(kind, units);
-    ledger.check(videoId, cost, consent);
+    ledger.check(account, cost, consent);
     let generation = store.insert('generations', {
       videoId, step, promptId: null, promptVersion: null, kind, provider: ai.name, model: ai.models[kind] || '',
       input, instruction: '', status: 'running', estimate: cost, cost: 0, ...meta,
     });
-    const entry = ledger.reserve(videoId, cost, { generationId: generation.id, kind, step });
+    const entry = ledger.reserve(account, cost, { generationId: generation.id, kind, step });
     try {
       const result = await call(ai);
       const actual = result.cost ?? cost;

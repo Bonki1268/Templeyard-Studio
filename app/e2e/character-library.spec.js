@@ -53,4 +53,18 @@ test.describe('角色庫', () => {
     await page.getByRole('link', { name: '蘆洲湧蓮寺' }).click();
     await expect(page.getByTestId('series-character')).toHaveText(['導覽員小晴']);
   });
+  test('場景：在角色庫選擇角色語音並試聽', async ({ page, request }) => {
+    const series = await createSeries(request, { name: '三峽祖師廟' });
+    const { voices } = await (await request.get('/api/voices')).json();
+    await page.goto(`/#/series/${series.id}/characters`);
+    const item = page.getByTestId('library-character').filter({ hasText: '導覽員小晴' });
+    await item.getByLabel('語音').selectOption(voices[1].id);
+    await expect(page.getByText(`已將「導覽員小晴」的語音設為「${voices[1].label}」`)).toBeVisible();
+    await item.getByRole('button', { name: /試聽/ }).click();
+    const audio = item.getByTestId('voice-preview');
+    await expect(audio).toBeVisible();
+    await expect(audio).toHaveAttribute('src', /\/media\//);
+    await page.reload();
+    await expect(page.getByTestId('library-character').filter({ hasText: '導覽員小晴' }).getByLabel('語音')).toHaveValue(voices[1].id);
+  });
 });

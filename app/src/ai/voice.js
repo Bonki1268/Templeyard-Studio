@@ -1,7 +1,7 @@
 // 語音合成（旁白與選「語音合成」的台詞）：
 //   say：macOS 內建台灣中文語音，免費、本機（real 模式在 macOS 上的預設）
 //   azure：Azure 語音服務台灣中文神經語音，付費，需 AZURE_SPEECH_KEY、AZURE_SPEECH_REGION
-// 旁白固定一個聲音；每個角色依名字固定分配一個聲音，同一支影片內前後一致。
+// 旁白固定一個聲音；角色可在角色庫指定聲音（voice），沒指定或不是這個服務的聲音時依名字固定分配。
 // 相同聲音與台詞只合成一次，之後沿用檔案（不重複付費）。
 const fs = require('node:fs');
 const path = require('node:path');
@@ -10,13 +10,23 @@ const { exec } = require('../media/ffmpeg');
 
 const hash = v => crypto.createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const isNarrator = speaker => !speaker || speaker === '旁白';
-const pickVoice = (speaker, narrator, pool) => (isNarrator(speaker) ? narrator : pool[parseInt(hash(speaker).slice(0, 8), 16) % pool.length]);
+function pickVoice({ speaker, voice }, narrator, pool, voices) {
+  if (voice && voices.some(v => v.id === voice)) return voice;
+  return isNarrator(speaker) ? narrator : pool[parseInt(hash(speaker).slice(0, 8), 16) % pool.length];
+}
 
 const SAY_NARRATOR = 'Meijia';
 const SAY_CHARACTERS = ['Eddy', 'Flo', 'Reed', 'Sandy', 'Shelley', 'Grandpa', 'Grandma', 'Rocko'].map(n => `${n} (中文（台灣）)`);
+const SAY_LABELS = { Meijia: '美佳・女聲（旁白預設）', Eddy: 'Eddy・男聲', Flo: 'Flo・女聲', Reed: 'Reed・男聲', Sandy: 'Sandy・女聲', Shelley: 'Shelley・女聲', Grandpa: 'Grandpa・男聲・長者', Grandma: 'Grandma・女聲・長者', Rocko: 'Rocko・男聲' };
+const SAY_VOICES = [SAY_NARRATOR, ...SAY_CHARACTERS].map(id => ({ id, label: SAY_LABELS[id.split(' ')[0]] }));
 
 const AZURE_NARRATOR = 'zh-TW-HsiaoChenNeural';
 const AZURE_CHARACTERS = ['zh-TW-YunJheNeural', 'zh-TW-HsiaoYuNeural'];
+const AZURE_VOICES = [
+  { id: AZURE_NARRATOR, label: '曉臻・女聲（旁白預設）' },
+  { id: 'zh-TW-HsiaoYuNeural', label: '曉雨・女聲' },
+  { id: 'zh-TW-YunJheNeural', label: '雲哲・男聲' },
+];
 const AZURE_USD_PER_CHAR = 15 / 1e6; // 神經語音每百萬字約 US$15
 
 function cached(mediaDir, prefix, key) {
@@ -29,8 +39,9 @@ function cached(mediaDir, prefix, key) {
 function createSayVoice({ mediaDir, run = exec }) {
   return {
     model: 'macos-say',
-    async synthesize({ text, speaker = '' }) {
-      const voice = pickVoice(speaker, SAY_NARRATOR, SAY_CHARACTERS);
+    voices: SAY_VOICES,
+    async synthesize({ text, speaker = '', voice: chosen }) {
+      const voice = pickVoice({ speaker, voice: chosen }, SAY_NARRATOR, SAY_CHARACTERS, SAY_VOICES);
       const { file, exists } = cached(mediaDir, 'say', [voice, text]);
       if (!exists) await run('say', ['-v', voice, '--file-format=WAVE', '--data-format=LEI16@44100', '-o', file, String(text)]);
       return { file, model: `macos-say:${voice.split(' ')[0]}`, cost: 0 };
@@ -43,8 +54,9 @@ const escapeXml = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 function createAzureVoice({ key, region, mediaDir, fetchImpl = fetch }) {
   return {
     model: 'azure-tts',
-    async synthesize({ text, speaker = '' }) {
-      const voice = pickVoice(speaker, AZURE_NARRATOR, AZURE_CHARACTERS);
+    voices: AZURE_VOICES,
+    async synthesize({ text, speaker = '', voice: chosen }) {
+      const voice = pickVoice({ speaker, voice: chosen }, AZURE_NARRATOR, AZURE_CHARACTERS, AZURE_VOICES);
       const model = `azure-tts:${voice}`;
       const { file, exists } = cached(mediaDir, 'azure', [voice, text]);
       if (exists) return { file, model, cost: 0 };
@@ -74,7 +86,7 @@ function createRealVoice({ env, platform, mediaDir, fetchImpl, local }) {
     if (!env.AZURE_SPEECH_KEY || !env.AZURE_SPEECH_REGION) throw new Error('TTS_PROVIDER=azure 需要設定環境變數 AZURE_SPEECH_KEY、AZURE_SPEECH_REGION');
     return createAzureVoice({ key: env.AZURE_SPEECH_KEY, region: env.AZURE_SPEECH_REGION, mediaDir, fetchImpl });
   }
-  if (name === 'local') return { model: local.models.voice, synthesize: local.voice.synthesize };
+  if (name === 'local') return { model: local.models.voice, ...local.voice };
   throw new Error(`不認得的 TTS_PROVIDER「${name}」，可用的選項：say、azure、local`);
 }
 

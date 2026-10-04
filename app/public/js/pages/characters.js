@@ -1,18 +1,20 @@
-// 角色庫：一個系列的共同角色。新增（AI 撰寫描述）、刪除、產生四格定妝板、鎖定定裝版本。
+// 角色庫：一個系列的共同角色。新增（AI 撰寫描述）、刪除、產生四格定妝板、鎖定定裝版本、選擇語音並試聽。
 import { h, api, mount, toast, money } from '../ui.js';
 import { withConsent } from './video.js';
 import { boardImage, boardView } from './board.js';
 
 export async function charactersPage(id) {
   const base = `/api/series/${id}`;
-  const [{ series }, est] = await Promise.all([
+  const [{ series }, est, { voices }] = await Promise.all([
     api('GET', base),
     api('GET', `${base}/estimate/characters`).catch(() => ({ draft: 0, sheet: 0 })),
+    api('GET', '/api/voices').catch(() => ({ voices: [] })),
   ]);
   const list = h('section', { class: 'stack', style: 'gap:12px', 'aria-label': '角色清單' });
   let open = null; // 展開定妝板的角色 id
   let confirming = null; // 等待確認刪除的角色 id
   let adding = false;
+  const previews = {}; // 角色 id → 試聽音訊網址
 
   async function run(button, fn) {
     if (button) button.disabled = true;
@@ -35,6 +37,30 @@ export async function charactersPage(id) {
       h('button', { class: 'btn btn-sm', onclick: () => { confirming = null; draw(); } }, '取消'));
   }
 
+  // 語音：選單改選後立即儲存；「試聽」以選單目前的聲音合成一句自我介紹。
+  function voiceControls(c) {
+    const select = h('select', { id: `sc-voice-${c.id}`, class: 'input', style: 'width:auto;min-width:200px', onchange: async () => {
+      const r = await run(select, () => api('PATCH', `${base}/characters/${c.id}`, { voice: select.value }));
+      if (!r) return;
+      const label = voices.find(v => v.id === select.value)?.label || '自動（依名字分配）';
+      delete previews[c.id];
+      replace(r.character);
+      toast(`已將「${c.name}」的語音設為「${label}」`);
+    } },
+    h('option', { value: '' }, '自動（依名字分配）'),
+    voices.map(v => h('option', { value: v.id, selected: v.id === c.voice }, v.label)));
+    const listen = h('button', { class: 'btn btn-sm', onclick: async () => {
+      const r = await run(listen, consent => api('POST', `${base}/characters/${c.id}/voice-preview`, { voice: select.value, consent }));
+      if (!r) return;
+      previews[c.id] = r.preview.url;
+      draw();
+      document.querySelector(`[data-preview="${c.id}"]`)?.play().catch(() => {});
+    } }, '▶ 試聽');
+    return h('div', { class: 'row', style: 'gap:8px;align-items:center' },
+      h('label', { for: select.id, class: 'small muted' }, '語音'), select, listen,
+      previews[c.id] ? h('audio', { controls: true, src: previews[c.id], 'data-preview': c.id, 'data-testid': 'voice-preview', style: 'height:32px' }) : null);
+  }
+
   function item(c) {
     const locked = c.versions.find(v => v.version === c.lockedVersion);
     const thumb = boardImage(locked?.images);
@@ -46,6 +72,7 @@ export async function charactersPage(id) {
           h('h2', { style: 'font-size:18px;margin:0' }, c.name),
           h('span', { class: 'small muted' }, locked ? `定裝版本 v${c.lockedVersion}・已鎖定` : c.versions.length ? `已有 ${c.versions.length} 個版本・尚未鎖定` : '尚未產生定妝板'),
           c.description ? h('span', { class: 'small muted' }, c.description) : null,
+          voices.length ? voiceControls(c) : null,
           h('div', { class: 'row', style: 'gap:6px' },
             h('button', { class: 'btn btn-sm', 'aria-expanded': String(open === c.id), onclick: () => { open = open === c.id ? null : c.id; draw(); } }, '定妝板'),
             deleteControls(c)))),

@@ -1,13 +1,14 @@
-// 系列角色（角色庫）：依構想撰寫外觀描述、產生四格定妝板、鎖定定裝版本、刪除角色。
+// 系列角色（角色庫）：依構想撰寫外觀描述、產生四格定妝板、鎖定定裝版本、選擇語音並試聽、刪除角色。
 // 費用記在系列帳（series:<id>）上；鎖定的版本讓之後新增的影片在角色設計步驟直接沿用。
 const { unprocessable, notFound } = require('../http');
 const { estimateCost } = require('../cost/prices');
+const path = require('node:path');
 const { generateSheet } = require('../steps/step5');
 const { text } = require('../util');
 
 const STEP = 1;
 
-function createSeriesCharacterService({ series, store, generations, ledger, config }) {
+function createSeriesCharacterService({ series, store, generations, ledger, config, ai }) {
   const account = id => `series:${id}`;
   const record = id => ({ account: account(id), meta: { seriesId: id } });
 
@@ -67,6 +68,19 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
       });
     },
 
+    // 以指定的聲音（未指定時用角色目前的聲音）合成一句自我介紹，費用記在系列帳上。
+    async previewVoice(id, cid, { voice, consent = false } = {}) {
+      const c = find(series.get(id), cid);
+      const chosen = voice === undefined ? c.voice || '' : text(voice);
+      const line = `我是${c.name}，歡迎來到廟埕。`;
+      const { result } = await generations.runDirect({
+        ...record(id), step: STEP, kind: 'voice', input: { text: line, speaker: c.name, voice: chosen }, units: { count: 1 }, consent,
+        meta: { ...record(id).meta, characterId: c.id },
+        call: provider => provider.voice.synthesize({ text: line, speaker: c.name, voice: chosen }),
+      });
+      return { preview: { file: path.relative(config.mediaDir, result.file), voice: chosen } };
+    },
+
     // 刪除後舊設定保存在系列歷史中；已建立的影片保有自己的系列快照，不受影響。
     remove(id, cid) {
       find(series.get(id), cid);
@@ -78,6 +92,11 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
       return mutate(id, cid, c => {
         const hasVersion = v => c.versions.some(x => x.version === Number(v));
         if (patch.description !== undefined) c.description = text(patch.description);
+        if (patch.voice !== undefined) {
+          const voice = text(patch.voice);
+          if (voice && !ai.voice.voices.some(v => v.id === voice)) throw unprocessable('invalid_voice', '目前的語音服務沒有這個聲音');
+          c.voice = voice;
+        }
         if (patch.selectedVersion !== undefined) {
           if (!hasVersion(patch.selectedVersion)) throw unprocessable('invalid_version', '沒有這個版本');
           c.selectedVersion = Number(patch.selectedVersion);
@@ -92,10 +111,12 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
   };
 }
 
-function registerSeriesCharacterRoutes(router, { seriesCharacters, present }) {
+function registerSeriesCharacterRoutes(router, { seriesCharacters, present, ai }) {
   // DELETE 回傳整個系列，讓角色庫與系列頁直接更新清單。
   const base = '/api/series/:id';
   const reply = character => ({ character: present(character) });
+  router.get('/api/voices', () => ({ provider: ai.models.voice, voices: ai.voice.voices || [] }));
+  router.post(`${base}/characters/:cid/voice-preview`, async ({ params, json }) => present(await seriesCharacters.previewVoice(params.id, params.cid, await json())));
   router.get(`${base}/estimate/characters`, () => seriesCharacters.estimate());
   router.get(`${base}/cost`, ({ params }) => ({ cost: seriesCharacters.cost(params.id) }));
   router.post(`${base}/characters/draft`, async ({ params, json }) => seriesCharacters.draft(params.id, await json()));

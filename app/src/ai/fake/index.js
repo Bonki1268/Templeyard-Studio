@@ -144,10 +144,11 @@ function createFakeProviders({ mediaDir, output = { width: 1920, height: 1080, f
       },
     },
     voice: {
-      async synthesize({ text, speaker = '' }) {
-        record('voice', { text, speaker });
+      voices: [{ id: 'fake-a', label: '假聲音 A・女聲' }, { id: 'fake-b', label: '假聲音 B・男聲' }],
+      async synthesize({ text, speaker = '', voice = '' }) {
+        record('voice', { text, speaker, voice });
         const seconds = Math.max(0.5, Math.min(4, String(text).length * 0.2));
-        const h = hash([text, speaker]);
+        const h = hash([text, speaker, voice]);
         const file = path.join(dir, `voice-${h.slice(0, 16)}.wav`);
         if (!fs.existsSync(file)) await ffmpeg(['-f', 'lavfi', '-i', `sine=frequency=${500 + (parseInt(h.slice(0, 2), 16) % 300)}:sample_rate=44100:duration=${seconds}`, '-af', 'volume=0.3', file]);
         return { file, seconds, model: 'fake-voice' };
