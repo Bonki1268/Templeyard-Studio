@@ -22,16 +22,16 @@ const call = async (method, url, body) => {
   return { status: res.status, body: await res.json() };
 };
 
-test('六個節點的 prompt 檔都通過驗證', () => {
+test('七個節點的 prompt 檔都通過驗證', () => {
   const files = fs.readdirSync(tmp).filter(f => f.endsWith('.json'));
-  assert.equal(files.length, 6);
+  assert.equal(files.length, 7);
   for (const f of files) assert.deepEqual(validate(JSON.parse(fs.readFileSync(path.join(tmp, f), 'utf8'))), [], f);
 });
 
 test('列出 prompt，依步驟排序', async () => {
   const { status, body } = await call('GET', '/api/prompts');
   assert.equal(status, 200);
-  assert.deepEqual(body.prompts.map(p => p.step), [2, 3, 3, 4, 5, 6]);
+  assert.deepEqual(body.prompts.map(p => p.step), [1, 2, 3, 3, 4, 5, 6]);
 });
 
 test('組裝：帶入巢狀變數並產生 JavaScript', async () => {

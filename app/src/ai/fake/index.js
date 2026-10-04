@@ -24,6 +24,17 @@ function fakePolish(v) {
   return { polished, notes: '只改寫語句，沒有加入新的事實。' };
 }
 
+function fakeCharacterDesign(v) {
+  const name = String(v.character?.name || '').trim() || '在地導覽員';
+  const idea = String(v.idea || '').trim() || name;
+  const outfit = pick(['米白色棉麻襯衫、深灰長褲', '深藍色唐裝、黑色布鞋', '淺卡其外套、白色上衣'], `${idea}|${v.instruction || ''}`);
+  return {
+    name,
+    description: `${idea}。外觀：五官柔和、髮型整齊，穿${outfit}，配色呼應「${v.series?.style || '系列風格'}」。`,
+    notes: '依構想補上可畫的外觀細節，沒有加入新的經歷或事實。',
+  };
+}
+
 const SIZES = ['遠景', '中景', '特寫', '中景'];
 const CAMERAS = ['緩慢推近', '固定鏡頭', '緩慢跟拍', '橫移', '微微上搖'];
 const ACTIONS = ['走進廟埕，停下來回頭看向鏡頭', '抬頭看著屋脊上的剪黏', '在石獅旁對著鏡頭說話', '雙手合十向廟內致意', '翻看手機裡的老照片', '望向廟門微笑'];
@@ -104,6 +115,7 @@ function createFakeProviders({ mediaDir, output = { width: 1920, height: 1080, f
         record('text', { request, variables });
         const json = request.promptId === 'story-script' ? fakeScript(variables)
           : request.promptId === 'copy-polish' ? fakePolish(variables)
+          : request.promptId === 'character-design' ? fakeCharacterDesign(variables)
           : { text: request.messages[0].content.slice(0, 200) };
         return { json, text: JSON.stringify(json), model: 'fake-text' };
       },

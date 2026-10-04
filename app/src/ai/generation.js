@@ -7,19 +7,20 @@ function createGenerationService({ store, prompts, ai, config, ledger }) {
   const rel = file => (file ? path.relative(config.dataDir, file) : undefined);
 
   // estimate 未指定時依生成類型與 units（seconds、count）計算；consent 表示使用者已同意超過門檻或上限。
-  async function run({ videoId, step, promptId, variables = {}, instruction = '', model, target, call, meta = {}, estimate, units, consent = false }) {
+  // account 是記帳對象，預設為影片；系列頁的生成記在 series:<id>。
+  async function run({ videoId = null, account = videoId, step, promptId, variables = {}, instruction = '', model, target, call, meta = {}, estimate, units, consent = false }) {
     // 有模型專用寫法時（例如 Seedance），組裝時套用該模型的規則。
     const ruleModel = model ?? ai.ruleModels?.[prompts.load(promptId).target?.kind];
     const request = await prompts.render(promptId, variables, { model: ruleModel });
     const kind = request.target?.kind;
     const cost = estimate ?? estimateCost(kind, units);
-    ledger.check(videoId, cost, consent);
+    ledger.check(account, cost, consent);
     let generation = store.insert('generations', {
       videoId, step, promptId, promptVersion: request.promptVersion, kind,
       provider: ai.name, model: request.target?.model || ai.models[kind] || '',
       input: variables, instruction, target, status: 'running', estimate: cost, cost: 0, ...meta,
     });
-    const entry = ledger.reserve(videoId, cost, { generationId: generation.id, kind, step });
+    const entry = ledger.reserve(account, cost, { generationId: generation.id, kind, step });
     try {
       const result = await call(ai, request);
       const actual = result.cost ?? cost;
@@ -60,13 +61,13 @@ function createGenerationService({ store, prompts, ai, config, ledger }) {
   return {
     run,
     runDirect,
-    list: filter => store.list('generations', g => (!filter.videoId || g.videoId === filter.videoId))
+    list: filter => store.list('generations', g => (!filter.videoId || g.videoId === filter.videoId) && (!filter.seriesId || g.seriesId === filter.seriesId))
       .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
   };
 }
 
 function registerGenerationRoutes(router, { generations, ledger }) {
-  router.get('/api/generations', ({ query }) => ({ generations: generations.list({ videoId: query.videoId }) }));
+  router.get('/api/generations', ({ query }) => ({ generations: generations.list({ videoId: query.videoId, seriesId: query.seriesId }) }));
   router.get('/api/videos/:id/cost', ({ params }) => ({ cost: ledger.summary(params.id), entries: ledger.entries(params.id) }));
 }
 

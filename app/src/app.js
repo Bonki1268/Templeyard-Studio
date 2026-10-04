@@ -5,6 +5,7 @@ const { registerTempleRoutes, templeDb } = require('./temples/search');
 const { Router, Reply, sendJson, sendError, sendFile, readJson, readRaw, notFound, HttpError } = require('./http');
 const { Store } = require('./store/store');
 const { createSeriesService, registerSeriesRoutes } = require('./series');
+const { createSeriesCharacterService, registerSeriesCharacterRoutes } = require('./series/characters');
 const { createPromptService } = require('./prompts');
 const { createProviders } = require('./ai');
 const { createGenerationService, registerGenerationRoutes } = require('./ai/generation');
@@ -49,11 +50,15 @@ function createApp(options = {}) {
   ctx.detector = createDetector(config.detector);
   ctx.ledger = createLedger({
     store,
-    capOf: options.costCapOf || (videoId => store.get('videos', videoId)?.costCap ?? DEFAULTS.costCap),
+    // 記帳對象是影片 id，或系列頁生成用的 series:<id>，上限都取自各自的費用上限。
+    capOf: options.costCapOf || (account => (String(account).startsWith('series:')
+      ? store.get('series', account.slice('series:'.length))?.costCap
+      : store.get('videos', account)?.costCap) ?? DEFAULTS.costCap),
     threshold: options.costThreshold ?? DEFAULTS.threshold,
   });
   ctx.generations = createGenerationService(ctx);
   ctx.series = createSeriesService(ctx);
+  ctx.seriesCharacters = createSeriesCharacterService(ctx);
   ctx.videos = createVideoService(ctx);
   ctx.photos = createPhotoService(ctx);
   ctx.step2 = createStep2Service(ctx);
@@ -77,6 +82,7 @@ function createApp(options = {}) {
   router.get('/api/health', () => ({ ok: true, aiProvider: config.aiProvider }));
   registerTempleRoutes(router, ctx.temples);
   registerSeriesRoutes(router, ctx);
+  registerSeriesCharacterRoutes(router, ctx);
   registerGenerationRoutes(router, ctx);
   registerVideoRoutes(router, ctx);
   registerPhotoRoutes(router, ctx);

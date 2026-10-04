@@ -1,0 +1,73 @@
+{
+  "id": "character-design",
+  "step": 1,
+  "name": "系列角色外觀描述",
+  "description": "步驟 1：在系列頁依使用者的構想撰寫共同角色的外觀描述，供三視圖與定裝圖使用。",
+  "version": 1,
+  "updatedAt": "2026-10-04T00:00:00.000Z",
+  "target": {
+    "kind": "text",
+    "model": ""
+  },
+  "system": "你是廣告影片的角色設計師，擅長把簡短的角色構想寫成可直接交給繪圖模型的繁體中文外觀描述。描述要具體可畫：年齡與性別、臉型與髮型、體型、服裝（款式、顏色、材質）、配件與一個辨識特徵；不寫個性、經歷或劇情。\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。角色不可描述成神明本身，也不可模仿可辨識的真實人物。",
+  "template": "請依構想撰寫一位系列共同角色的外觀描述（80～150 字），風格要與系列一致。若使用者沒有給角色名稱，請取一個簡短、符合在地氛圍的稱呼。\n\n角色名稱：{{character.name}}\n角色構想：{{idea}}\n系列名稱：{{series.name}}\n系列視覺風格：{{series.style}}\n影片方向：{{series.direction}}\n使用者調整指令：{{instruction}}",
+  "variables": [
+    {
+      "name": "character.name",
+      "label": "角色名稱",
+      "required": false,
+      "example": "廟公阿伯"
+    },
+    {
+      "name": "idea",
+      "label": "角色構想",
+      "required": false,
+      "example": "在廟口顧了四十年的老廟公，個性溫和"
+    },
+    {
+      "name": "series.name",
+      "label": "系列名稱",
+      "required": false,
+      "example": "淡水廟宇故事"
+    },
+    {
+      "name": "series.style",
+      "label": "系列視覺風格",
+      "required": true,
+      "example": "溫暖寫實、黃昏暖色調"
+    },
+    {
+      "name": "series.direction",
+      "label": "影片方向",
+      "required": false,
+      "example": "在地歷史故事"
+    },
+    {
+      "name": "instruction",
+      "label": "使用者調整指令",
+      "required": false,
+      "example": "年紀再大一點"
+    }
+  ],
+  "output": {
+    "format": "json",
+    "schema": {
+      "type": "object",
+      "required": [
+        "name",
+        "description"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

@@ -20,6 +20,25 @@ function neededCharacters(script) {
   return [...byName].map(([name, description]) => ({ name, description }));
 }
 
+// 產生三視圖與定裝圖（四張），回傳 { front, side, back, costume }。
+// record 是生成紀錄與記帳的歸屬：影片（videoId）或系列（account、meta.seriesId）。
+async function generateSheet({ generations, config }, { character, style, instruction = '', reference = '', consent, step, record }) {
+  const variables = {
+    character: { name: character.name, description: character.description || `${character.name}（依腳本）`, reference },
+    series: { style }, instruction: text(instruction),
+  };
+  const images = {};
+  await mapLimit(VIEWS, 4, async view => {
+    const { generation, result } = await generations.run({
+      ...record, step, promptId: 'character-sheet', variables, instruction: text(instruction), consent,
+      units: { count: 1 }, meta: { ...record.meta, characterId: character.id, view },
+      call: (ai, request) => ai.image.generate({ request, variant: view }),
+    });
+    images[view] = { file: path.relative(config.mediaDir, result.file), generationId: generation.id };
+  });
+  return images;
+}
+
 function createStep4Service({ videos, generations, ledger, store, config }) {
   const lockedOf = sc => sc.versions?.find(x => x.version === sc.lockedVersion);
 
@@ -32,22 +51,9 @@ function createStep4Service({ videos, generations, ledger, store, config }) {
     });
   }
 
-  async function sheet(v, character, { instruction = '', reference = '', consent }) {
-    const variables = {
-      character: { name: character.name, description: character.description || `${character.name}（依腳本）`, reference },
-      series: { style: seriesVars(v).style }, instruction: text(instruction),
-    };
-    const images = {};
-    await mapLimit(VIEWS, 4, async view => {
-      const { generation, result } = await generations.run({
-        videoId: v.id, step: 4, promptId: 'character-sheet', variables, instruction: text(instruction), consent,
-        units: { count: 1 }, meta: { characterId: character.id, view },
-        call: (ai, request) => ai.image.generate({ request, variant: view }),
-      });
-      images[view] = { file: path.relative(config.mediaDir, result.file), generationId: generation.id };
-    });
-    return images;
-  }
+  const sheet = (v, character, options) => generateSheet({ generations, config }, {
+    ...options, character, style: seriesVars(v).style, step: 4, record: { videoId: v.id },
+  });
 
   function findCharacter(v, cid) {
     const c = v.characters.find(x => x.id === cid);
@@ -145,4 +151,4 @@ function registerStep4Routes(router, { step4, present }) {
   router.patch(`${base}/:cid`, async ({ params, json }) => reply(step4.update(params.id, params.cid, await json())));
 }
 
-module.exports = { createStep4Service, registerStep4Routes, neededCharacters, VIEWS };
+module.exports = { createStep4Service, registerStep4Routes, neededCharacters, generateSheet, VIEWS };
