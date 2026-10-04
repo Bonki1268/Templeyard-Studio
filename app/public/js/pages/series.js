@@ -1,5 +1,5 @@
-// 系列頁：系列設定、系列角色、影片列表、新增影片。
-import { h, api, formatDate, toast } from '../ui.js';
+// 系列頁：系列設定、系列角色、影片列表、新增影片、刪除系列。
+import { h, api, formatDate, toast, setBusy } from '../ui.js';
 import { seriesForm } from './home.js';
 
 const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '寺廟背景板', 4: '故事腳本', 5: '角色設計', 6: '精緻圖', 7: '影片生成' };
@@ -49,11 +49,35 @@ export async function seriesPage(id) {
     location.hash = `#/videos/${video.id}/2`;
   };
 
+  // 刪除系列：先展開確認區塊，說明會一併刪除幾支影片，再按「確認刪除」。
+  const deleteBox = h('section', { class: 'card stack danger-zone', 'data-testid': 'delete-series', hidden: true });
+  const askDelete = () => {
+    const confirm = h('button', { class: 'btn btn-danger', onclick: async () => {
+      setBusy(confirm, true);
+      try {
+        await api('DELETE', `/api/series/${id}`);
+        toast(`已刪除系列「${series.name}」`);
+        location.hash = '#/';
+      } catch (err) { toast(err.message); setBusy(confirm, false); }
+    } }, '確認刪除');
+    deleteBox.replaceChildren(
+      h('h2', {}, `刪除「${series.name}」？`),
+      h('p', { class: 'small muted', style: 'line-height:1.7' },
+        videos.length ? `會一併刪除 ${videos.length} 支影片。` : '這個系列沒有影片。',
+        '刪除後首頁與網址都看不到這個系列；資料仍保存在歷史中，照片與影片檔不會從電腦刪除。'),
+      h('div', { class: 'row', style: 'gap:8px' }, confirm, h('button', { class: 'btn', onclick: () => { deleteBox.hidden = true; } }, '取消')));
+    deleteBox.hidden = false;
+    deleteBox.scrollIntoView({ block: 'nearest' });
+  };
+
   return h('main', { class: 'main' },
     h('nav', { class: 'crumbs', style: 'margin-bottom:16px' }, h('a', { href: '#/' }, '首頁'), ' › ', series.name),
     h('div', { class: 'page-head' },
       h('div', {}, h('h1', {}, series.name), h('p', {}, `${videos.length} 支影片・最近更新 ${formatDate(series.updatedAt)}`)),
-      h('button', { class: 'btn btn-primary', onclick: newVideo }, '＋ 新增影片')),
+      h('div', { class: 'row', style: 'gap:8px' },
+        h('button', { class: 'btn', onclick: askDelete }, '刪除系列'),
+        h('button', { class: 'btn btn-primary', onclick: newVideo }, '＋ 新增影片'))),
+    deleteBox,
     h('div', { class: 'layout' },
       h('div', { class: 'side stack', style: 'gap:16px;flex:1 1 300px' }, settings, characters),
       h('section', { class: 'grow stack', 'aria-labelledby': 'videos-title', style: 'gap:12px' },

@@ -34,14 +34,14 @@ function newCharacter(store, c) {
 function createSeriesService({ store }) {
   const get = id => {
     const s = store.get('series', id);
-    if (!s) throw notFound('找不到系列');
+    if (!s || s.deletedAt) throw notFound('找不到系列');
     return s;
   };
   return {
     get,
     list() {
-      const videos = store.list('videos');
-      return store.list('series')
+      const videos = store.list('videos', v => !v.deletedAt);
+      return store.list('series', s => !s.deletedAt)
         .map(s => ({ ...s, videoCount: videos.filter(v => v.seriesId === s.id).length }))
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     },
@@ -72,6 +72,15 @@ function createSeriesService({ store }) {
       return character;
     },
     history: id => { get(id); return store.history('series', id); },
+    // 刪除：系列與它的影片標記為已刪除，不再出現在清單、網址回應 404；刪除前的版本保存在歷史中，檔案不刪。
+    remove(id) {
+      get(id);
+      const deletedAt = store.now();
+      const videos = store.list('videos', v => v.seriesId === id && !v.deletedAt);
+      for (const v of videos) store.update('videos', v.id, { deletedAt });
+      store.update('series', id, { deletedAt });
+      return { series: id, videos: videos.length };
+    },
   };
 }
 
@@ -80,8 +89,9 @@ function registerSeriesRoutes(router, { series, store, present }) {
   router.post('/api/series', async ({ json }) => new Reply(201, { series: present(series.create(await json())) }));
   router.get('/api/series/:id', ({ params }) => ({
     series: present(series.get(params.id)),
-    videos: present(store.list('videos', v => v.seriesId === params.id).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))),
+    videos: present(store.list('videos', v => v.seriesId === params.id && !v.deletedAt).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))),
   }));
+  router.delete('/api/series/:id', ({ params }) => ({ deleted: series.remove(params.id) }));
   router.put('/api/series/:id', async ({ params, json }) => ({ series: present(series.update(params.id, await json())) }));
   router.get('/api/series/:id/history', ({ params }) => ({ history: series.history(params.id) }));
   router.post('/api/series/:id/characters', async ({ params, json }) => new Reply(201, { character: series.addCharacter(params.id, await json()) }));

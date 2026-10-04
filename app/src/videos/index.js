@@ -5,7 +5,7 @@ const wf = require('./workflow');
 function createVideoService({ store, series }) {
   const get = id => {
     const v = store.get('videos', id);
-    if (!v) throw notFound('找不到影片');
+    if (!v || v.deletedAt) throw notFound('找不到影片');
     return v;
   };
 

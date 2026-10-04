@@ -1,4 +1,5 @@
 const { test, expect } = require('@playwright/test');
+const { createSeries, createVideo } = require('./helpers');
 
 test.describe('首頁與系列頁', () => {
   test('場景：打開網頁就進入建立系列的首頁', async ({ page }) => {
@@ -50,5 +51,26 @@ test.describe('首頁與系列頁', () => {
     await page.getByLabel('20 秒').check();
     await page.getByRole('button', { name: '儲存設定' }).click();
     await expect(page.getByTestId('series-duration')).toHaveText('20 秒');
+  });
+});
+
+test.describe('刪除系列', () => {
+  test('場景：在系列頁刪除系列', async ({ page, request }) => {
+    const series = await createSeries(request, { name: '三芝福成宮' });
+    await createVideo(request, series.id);
+    await page.goto(`/#/series/${series.id}`);
+    await page.getByRole('button', { name: '刪除系列' }).click();
+    await expect(page.getByTestId('delete-series')).toContainText('會一併刪除 1 支影片');
+    await page.getByRole('button', { name: '確認刪除' }).click();
+    await expect(page).toHaveURL(/#\/$/);
+    await expect(page.getByText('已刪除系列「三芝福成宮」')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '已建立的系列' })).toBeVisible();
+    await expect(page.getByText('三芝福成宮', { exact: true })).toHaveCount(0);
+  });
+
+  test('場景：頂部導覽不顯示「本機個人使用」', async ({ page }) => {
+    await page.goto('/#/');
+    await expect(page.locator('header.topbar')).toContainText('廟埕影室');
+    await expect(page.getByText('本機個人使用')).toHaveCount(0);
   });
 });
