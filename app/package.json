@@ -1,0 +1,22 @@
+{
+  "name": "templeyard-studio",
+  "version": "0.1.0",
+  "private": true,
+  "description": "廟埕影室（Templeyard Studio）：寺廟觀光短影音的自動化輔助系統",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test --test-concurrency=4 \"test/**/*.test.js\"",
+    "e2e": "playwright test",
+    "start:real": "AI_PROVIDER=real node --env-file-if-exists=../.env server.js",
+    "check:real": "node --env-file-if-exists=../.env ../scripts/check-real.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0"
+  }
+}

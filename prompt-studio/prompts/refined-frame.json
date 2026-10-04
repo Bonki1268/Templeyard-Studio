@@ -3,15 +3,15 @@
   "step": 5,
   "name": "精緻圖",
   "description": "步驟 5：依分鏡、角色與實景照片產生每格精緻圖。",
-  "version": 1,
-  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-10-03T16:23:45.633Z",
   "target": {
     "kind": "image",
     "model": "",
-    "aspectRatio": "9:16"
+    "aspectRatio": "16:9"
   },
-  "system": "Photorealistic vertical 9:16 frame for a tourism short video. Use the supplied location photo as the real background and keep its architecture accurate. Keep the character identical to the supplied character sheet. Respectful depiction of temples and deities. No text, no logos, no identifiable real bystanders.",
-  "template": "分鏡 {{shot.index}}：{{shot.scene}}\n角色與動作：{{shot.action}}\n鏡頭：{{shot.camera}}\n角色定裝參考：{{character.reference}}\n實景照片：{{photo.description}}\n系列視覺風格：{{series.style}}\n使用者調整指令：{{instruction}}",
+  "system": "Photorealistic horizontal 16:9 (1920×1080) frame for a cinematic tourism short. Natural light, shallow depth of field. Use the supplied location photo as the real background and keep its architecture accurate. Keep the character identical to the supplied character sheet. No text, no logos.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "template": "分鏡 {{shot.index}}：{{shot.scene}}\n景別與構圖：{{shot.shotSize}}，{{shot.composition}}\n角色與動作：{{shot.action}}\n鏡頭：{{shot.camera}}\n角色定裝參考：{{character.reference}}\n實景照片：{{photo.description}}\n系列視覺風格：{{series.style}}\n使用者調整指令：{{instruction}}",
   "variables": [
     {
       "name": "shot.index",
@@ -60,6 +60,18 @@
       "label": "調整指令",
       "required": false,
       "example": ""
+    },
+    {
+      "name": "shot.shotSize",
+      "label": "景別",
+      "required": false,
+      "example": "中景"
+    },
+    {
+      "name": "shot.composition",
+      "label": "構圖",
+      "required": false,
+      "example": "人物位於右三分之一"
     }
   ]
 }

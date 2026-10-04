@@ -4,13 +4,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+echo "== 情境對照檢查 =="
+node scripts/check-features.js
+
 echo "== prompt-studio =="
 (cd prompt-studio && npm test)
 
-# 範例：新增的測試指令加在這裡
-# echo "== app 單元與整合測試 =="
-# (cd app && npm test)
-# echo "== 端對端測試 =="
-# (cd app && npx playwright test)
+echo "== app 單元與整合測試 =="
+(cd app && npm test)
+
+echo "== 端對端測試 =="
+(cd app && npx playwright test)
 
 echo "驗證閘門通過"

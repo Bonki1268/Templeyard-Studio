@@ -3,15 +3,15 @@
   "step": 3,
   "name": "分鏡圖",
   "description": "步驟 3：為單一分鏡產生草圖式分鏡圖。",
-  "version": 1,
-  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-10-03T16:23:45.626Z",
   "target": {
     "kind": "image",
     "model": "",
-    "aspectRatio": "9:16"
+    "aspectRatio": "16:9"
   },
-  "system": "Storyboard sketch, clean line art with light gray tones, cinematic composition, vertical 9:16 frame. Draw a rough frame for planning, not a final image. No text, no logos, no identifiable real people.",
-  "template": "分鏡 {{shot.index}}：{{shot.scene}}\n角色與動作：{{shot.action}}\n鏡頭：{{shot.camera}}\n出場角色：{{characters}}\n系列風格參考：{{series.style}}\n使用者調整指令：{{instruction}}",
+  "system": "Storyboard sketch, clean line art with light gray tones, cinematic composition, horizontal 16:9 frame. Draw a rough frame for planning, not a final image. No text, no logos.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "template": "分鏡 {{shot.index}}：{{shot.scene}}\n景別與構圖：{{shot.shotSize}}，{{shot.composition}}\n角色與動作：{{shot.action}}\n鏡頭：{{shot.camera}}\n出場角色：{{characters}}\n系列風格參考：{{series.style}}\n使用者調整指令：{{instruction}}",
   "variables": [
     {
       "name": "shot.index",
@@ -54,6 +54,18 @@
       "label": "調整指令",
       "required": false,
       "example": ""
+    },
+    {
+      "name": "shot.shotSize",
+      "label": "景別",
+      "required": false,
+      "example": "中景"
+    },
+    {
+      "name": "shot.composition",
+      "label": "構圖",
+      "required": false,
+      "example": "人物位於右三分之一"
     }
   ]
 }

@@ -3,15 +3,15 @@
   "step": 6,
   "name": "分鏡影片",
   "description": "步驟 6：把單格精緻圖依腳本生成分鏡影片。",
-  "version": 1,
-  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-10-03T16:23:45.635Z",
   "target": {
     "kind": "video",
     "model": "",
-    "aspectRatio": "9:16"
+    "aspectRatio": "16:9"
   },
-  "system": "Image-to-video for a tourism short. Animate the supplied refined frame; keep the background architecture and the character's face and outfit unchanged. Smooth, natural motion. Respectful depiction of temples and deities.",
-  "template": "分鏡 {{shot.index}}，長度 {{shot.seconds}} 秒\n角色與動作：{{shot.action}}\n鏡頭運動：{{shot.camera}}\n系列視覺風格：{{series.style}}\n使用者調整指令：{{instruction}}",
+  "system": "Image-to-video for a horizontal 16:9 cinematic tourism short. The supplied refined frame is the first frame (and the last frame when supplied); only add motion. Keep the background architecture and the character's face, hairstyle and outfit unchanged. Smooth, natural motion. When a line is given, the speaking character says it in Mandarin Chinese with accurate lip sync.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "template": "分鏡 {{shot.index}}，長度 {{shot.seconds}} 秒\n景別：{{shot.shotSize}}\n角色與動作：{{shot.action}}\n鏡頭運動：{{shot.camera}}\n轉場：{{shot.transition}}\n台詞（{{shot.speaker}}）：{{shot.line}}\n系列視覺風格：{{series.style}}\n使用者調整指令：{{instruction}}",
   "variables": [
     {
       "name": "shot.index",
@@ -48,6 +48,34 @@
       "label": "調整指令",
       "required": false,
       "example": ""
+    },
+    {
+      "name": "shot.shotSize",
+      "label": "景別",
+      "required": false,
+      "example": "中景"
+    },
+    {
+      "name": "shot.transition",
+      "label": "轉場",
+      "required": false,
+      "example": "直接切"
+    },
+    {
+      "name": "shot.speaker",
+      "label": "說話角色",
+      "required": false,
+      "example": "小晴"
+    },
+    {
+      "name": "shot.line",
+      "label": "台詞或旁白",
+      "required": false,
+      "example": "這座廟，藏著老一輩才知道的故事。"
     }
-  ]
+  ],
+  "modelRules": {
+    "seedance-2.0": "Seedance 寫法：先寫主體，再寫一個主要動作與一個鏡頭運動，避免同一格描述多個動作；台詞寫成「角色說：『…』」並要求中文口型同步；參考圖依序為首格、角色定裝圖。",
+    "kling-2.1": "Kling 寫法：以簡短英文句子描述動作，鏡頭運動放在句尾（例如 slow push in）；不支援口型時改為旁白，不讓角色開口。"
+  }
 }

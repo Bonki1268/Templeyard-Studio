@@ -30,10 +30,15 @@ function validate(p) {
       else if (seen.has(v.name)) errors.push(`變數 ${v.name} 重複`);
       else seen.add(v.name);
     });
-    const used = [...placeholders(p.system), ...placeholders(p.template)];
+    const rulesText = Object.values(p.modelRules || {}).join('\n');
+    const used = [...placeholders(p.system), ...placeholders(p.template), ...placeholders(rulesText)];
     for (const name of used) {
       if (!seen.has(name)) errors.push(`指令用到 {{${name}}}，但變數清單沒有宣告`);
     }
+  }
+  if (p.modelRules !== undefined && (typeof p.modelRules !== 'object' || Array.isArray(p.modelRules)
+    || Object.values(p.modelRules).some(r => typeof r !== 'string'))) {
+    errors.push('modelRules 必須是「模型名稱 → 規則文字」的物件');
   }
   if (p.output !== undefined && p.output !== null) {
     if (typeof p.output !== 'object' || !['text', 'json'].includes(p.output.format)) {
@@ -65,7 +70,10 @@ function fill(text, vars) {
 }
 
 // 依 prompt 檔與輸入變數，組出要送給 AI 的請求內容。
-function render(p, vars = {}) {
+// options.model 可指定模型；prompt 的 modelRules 有該模型的寫法規則時，附加在 system 之後。
+function render(p, vars = {}, options = {}) {
+  const model = options.model || p.target?.model || '';
+  const rules = model && p.modelRules?.[model];
   const missing = p.variables
     .filter(v => v.required && !present(lookup(vars, v.name)))
     .map(v => v.name);
@@ -73,8 +81,8 @@ function render(p, vars = {}) {
     promptId: p.id,
     promptVersion: p.version,
     step: p.step,
-    target: p.target,
-    system: fill(p.system, vars).trim(),
+    target: model ? { ...p.target, model } : p.target,
+    system: [fill(p.system, vars).trim(), rules ? fill(rules, vars).trim() : ''].filter(Boolean).join('\n\n'),
     messages: [{ role: 'user', content: fill(p.template, vars).trim() }],
   };
   if (p.output) request.output = p.output;

@@ -3,14 +3,14 @@
   "step": 2,
   "name": "故事文案潤飾",
   "description": "步驟 2：依系列規範修飾使用者輸入的故事。",
-  "version": 1,
-  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-10-03T16:23:45.620Z",
   "target": {
     "kind": "text",
     "model": ""
   },
-  "system": "你是地方觀光文案編輯，擅長把口語的地方故事整理成清楚、有畫面感的繁體中文短文。規則：只能使用下方提供的寺廟資料與使用者故事，不可自行補寫歷史年代、人物或傳說；不得出現對神明不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾臉孔。",
-  "template": "請潤飾以下故事，保留原意與所有事實，不增加新的事實。\n\n寺廟：{{temple.name}}（{{temple.district}}，主祀{{temple.deity}}，創建於{{temple.builtYear}}）\n系列風格：{{series.style}}\n影片方向：{{series.direction}}\n字數上限：{{maxChars}} 字\n\n使用者故事：\n{{story}}",
+  "system": "你是地方觀光文案編輯，擅長把口語的地方故事整理成清楚、有畫面感的繁體中文短文。\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "template": "請潤飾以下故事，保留原意與所有事實，不增加新的事實。\n\n寺廟：{{temple.name}}（{{temple.district}}，主祀{{temple.deity}}，創建於{{temple.builtYear}}）\n寺廟歷史與簡介（使用者提供）：{{temple.history}}\n系列風格：{{series.style}}\n影片方向：{{series.direction}}\n字數上限：{{maxChars}} 字\n使用者調整指令：{{instruction}}\n\n使用者故事：\n{{story}}",
   "variables": [
     {
       "name": "temple.name",
@@ -59,6 +59,18 @@
       "label": "使用者故事",
       "required": true,
       "example": "老一輩說，當年移民渡海來台，帶著定光古佛的香火在淡水落腳。"
+    },
+    {
+      "name": "temple.history",
+      "label": "寺廟歷史與簡介（使用者貼上）",
+      "required": false,
+      "example": "清道光年間由汀州移民興建。"
+    },
+    {
+      "name": "instruction",
+      "label": "使用者調整指令",
+      "required": false,
+      "example": "語氣再口語一點"
     }
   ],
   "output": {

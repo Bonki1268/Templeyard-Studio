@@ -3,14 +3,14 @@
   "step": 4,
   "name": "角色三視圖與定裝圖",
   "description": "步驟 4：依腳本需要的角色產生三視圖與定裝圖。",
-  "version": 1,
-  "updatedAt": "2026-10-03T00:00:00.000Z",
+  "version": 2,
+  "updatedAt": "2026-10-03T16:23:45.629Z",
   "target": {
     "kind": "image",
     "model": "",
     "aspectRatio": "16:9"
   },
-  "system": "Character design sheet on a pure white background: front, side and back full-body views of the same character with consistent proportions and costume, plus a costume detail (定裝) panel. Same face, hairstyle and outfit in every view. No text, no logos.",
+  "system": "Character design sheet on a pure white background: front, side and back full-body views of the same character with consistent proportions and costume, plus a costume detail (定裝) panel. Same face, hairstyle and outfit in every view. No text, no logos.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
   "template": "角色名稱：{{character.name}}\n外觀描述：{{character.description}}\n系列視覺風格：{{series.style}}\n參考的定裝版本：{{character.reference}}\n使用者調整指令：{{instruction}}",
   "variables": [
     {
