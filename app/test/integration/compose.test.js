@@ -123,3 +123,29 @@ test('場景：成品符合輸出規格 1920×1080、24 fps、30 秒以內', asy
   assert.ok(info.duration <= 30);
   assert.ok(Math.abs(info.duration - 6) < 0.2);
 });
+
+test('字幕樣式設定', async t => {
+  const s = await startApp();
+  t.after(() => s.close());
+  const { base } = await withClips(s, { duration: 15 });
+  await t.test('場景：在影片生成步驟手動改選字幕樣式', async () => {
+    await compose(s, base);
+    const r = await s.put(`${base}/audio`, { subtitleStyle: 'documentary' });
+    assert.equal(r.status, 200);
+    assert.equal(r.data.video.audio.subtitleStyle, 'documentary');
+    assert.equal(r.data.video.final.stale, true);
+    assert.equal((await s.put(`${base}/audio`, { subtitleStyle: 'comic' })).status, 422);
+    const v = await compose(s, base);
+    assert.equal(v.final.subtitleStyle, 'documentary');
+  });
+
+  await t.test('場景：合成的成品記下使用的字幕樣式', async () => {
+    await s.put(`${base}/audio`, { subtitleStyle: 'auto' });
+    const v = await compose(s, base);
+    assert.equal(v.audio.subtitleStyle, 'auto');
+    assert.equal(v.final.subtitleStyle, 'serif', '系列風格「溫暖寫實」自動使用人文宋體');
+    const info = (await s.get(`${base}/subtitles`)).data;
+    assert.equal(info.auto, 'serif');
+    assert.deepEqual(info.styles.map(x => x.id), ['cinema', 'serif', 'documentary']);
+  });
+});

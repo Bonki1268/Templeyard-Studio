@@ -6,6 +6,7 @@ const { HttpError, unprocessable, notFound, Reply, sendFile } = require('../http
 const { ffmpeg, probe } = require('../media/ffmpeg');
 const { estimateCost, round } = require('../cost/prices');
 const wf = require('../videos/workflow');
+const { SUBTITLE_STYLES, FONT_DIR, subtitleStyleFor, formatSubtitle, splitSubtitle, assDocument, subtitleFilter } = require('../media/subtitles');
 
 const MAX_SECONDS = 30;
 const TRACKS = [
@@ -15,42 +16,26 @@ const TRACKS = [
   { id: 'none', name: '不加背景音樂' },
 ];
 const MUSIC_TYPES = { 'audio/mpeg': '.mp3', 'audio/mp4': '.m4a', 'audio/x-m4a': '.m4a', 'audio/aac': '.m4a', 'audio/wav': '.wav', 'audio/x-wav': '.wav' };
-const DEFAULT_AUDIO = { voiceMode: 'native', music: 'warm-piano', subtitles: true };
+// subtitleStyle：auto（依系列風格）或 SUBTITLE_STYLES 的其中一種。
+const DEFAULT_AUDIO = { voiceMode: 'native', music: 'warm-piano', subtitles: true, subtitleStyle: 'auto' };
 
 function timeline(shots) {
   let t = 0;
   return shots.map(s => { const item = { shot: s, start: t, end: t + Number(s.seconds) }; t = item.end; return item; });
 }
 
-function assTime(sec) {
-  const cs = Math.round(sec * 100);
-  const h = Math.floor(cs / 360000);
-  const m = Math.floor((cs % 360000) / 6000);
-  const s = Math.floor((cs % 6000) / 100);
-  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs % 100).padStart(2, '0')}`;
-}
-
-// 繁中字幕：白字、黑色描邊、下方置中（Alignment 2）。
-function assSubtitles(shots, { width, height }) {
-  const size = Math.round(height * 0.055);
-  const margin = Math.round(height * 0.06);
-  const outline = Math.max(1, Math.round(height / 360));
-  const lines = timeline(shots)
+// 每格的字幕依分鏡時間出現；排版與樣式見 media/subtitles.js。
+function assSubtitles(shots, { width, height, style = 'cinema' }) {
+  const items = timeline(shots)
     .filter(({ shot }) => (shot.subtitle || '').trim())
-    .map(({ shot, start, end }) => `Dialogue: 0,${assTime(start)},${assTime(end)},Default,,0,0,0,,${shot.subtitle.trim().replace(/\n/g, '\\N')}`);
-  return [
-    '[Script Info]', 'ScriptType: v4.00+', `PlayResX: ${width}`, `PlayResY: ${height}`, 'WrapStyle: 0', '',
-    '[V4+ Styles]',
-    'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
-    `Style: Default,PingFang TC,${size},&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,${outline},0,2,${margin},${margin},${margin},1`,
-    '', '[Events]', 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
-    ...lines, '',
-  ].join('\n');
+    .map(({ shot, start, end }) => ({ text: shot.subtitle, start, end }));
+  return assDocument(items, { width, height, style });
 }
 
 function createComposeService({ videos, generations, ledger, store, config, jobs, ai }) {
   const media = rel => path.join(config.mediaDir, rel);
   const audioOf = v => ({ ...DEFAULT_AUDIO, ...(v.audio || {}) });
+  const subtitleStyleOf = v => { const st = audioOf(v).subtitleStyle; return SUBTITLE_STYLES[st] ? st : subtitleStyleFor(v.series?.style); };
   const speaks = shot => Boolean(shot.line) && shot.speaker && shot.speaker !== '旁白';
 
   // 需要語音合成的台詞：旁白一律合成；選「語音合成」時角色台詞也合成。
@@ -101,9 +86,12 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
     }
     filters.push(`${clips.map((_, i) => `[v${i}][a${i}]`).join('')}concat=n=${clips.length}:v=1:a=1[vc][ac]`);
 
+    const subtitleStyle = subtitleStyleOf(v);
     if (audio.subtitles) {
-      fs.writeFileSync(path.join(work, 'subs.ass'), assSubtitles(shots, { width, height }));
-      filters.push('[vc]subtitles=subs.ass[vout]');
+      fs.writeFileSync(path.join(work, 'subs.ass'), assSubtitles(shots, { width, height, style: subtitleStyle }));
+      const fonts = path.join(work, 'fonts');
+      if (!fs.existsSync(fonts)) fs.symlinkSync(FONT_DIR, fonts, 'dir');
+      filters.push(`[vc]${subtitleFilter('subs.ass')}[vout]`);
     } else filters.push('[vc]null[vout]');
 
     const mix = ['[ac]'];
@@ -132,7 +120,7 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
       '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', String(fps),
       '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', media(rel)], { cwd: work });
     const info = await probe(media(rel));
-    return { file: rel, duration: round(info.duration), width: info.width, height: info.height, fps: info.fps, music: audio.music, voiceMode: audio.voiceMode, subtitles: audio.subtitles };
+    return { file: rel, duration: round(info.duration), width: info.width, height: info.height, fps: info.fps, music: audio.music, voiceMode: audio.voiceMode, subtitles: audio.subtitles, subtitleStyle };
   }
 
   return {
@@ -155,6 +143,10 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
           a.music = patch.music;
         }
         if (patch.subtitles !== undefined) a.subtitles = Boolean(patch.subtitles);
+        if (patch.subtitleStyle !== undefined) {
+          if (patch.subtitleStyle !== 'auto' && !SUBTITLE_STYLES[patch.subtitleStyle]) throw unprocessable('invalid_subtitle_style', `字幕樣式必須是 auto 或 ${Object.keys(SUBTITLE_STYLES).join('、')}`);
+          a.subtitleStyle = patch.subtitleStyle;
+        }
         v.audio = a;
         if (v.final) v.final.stale = true;
       });
@@ -211,6 +203,16 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
       if (v.steps[wf.LAST].status !== 'confirmed' || !v.final?.file) throw new HttpError(409, 'not_confirmed', '請先確認成品，才能下載');
       return { file: media(v.final.file), name: `${(v.title || '廟埕影室成品').replace(/[\\/:*?"<>|]/g, '_')}.mp4` };
     },
+
+    // 字幕樣式選項、自動樣式，以及每格排版後的字幕段落（介面預覽用）。
+    subtitles(id) {
+      const v = videos.get(id);
+      return {
+        styles: Object.entries(SUBTITLE_STYLES).map(([key, st]) => ({ id: key, label: st.label })),
+        auto: subtitleStyleFor(v.series?.style), current: audioOf(v).subtitleStyle, resolved: subtitleStyleOf(v),
+        segments: Object.fromEntries((v.script?.shots || []).map(s => [s.id, splitSubtitle(formatSubtitle(s.subtitle))])),
+      };
+    },
   };
 }
 
@@ -224,6 +226,7 @@ function registerComposeRoutes(router, { compose, present, videos }) {
     });
     return new Reply(201, { video: present(video), track });
   });
+  router.get(`${base}/subtitles`, ({ params }) => compose.subtitles(params.id));
   router.put(`${base}/audio`, async ({ params, json }) => ({ video: present(compose.setAudio(params.id, await json())) }));
   router.post(`${base}/compose`, async ({ params, json }) => new Reply(202, { video: present(compose.compose(params.id, await json())) }));
   router.patch(`${base}/final`, async ({ params, json }) => ({ video: present(compose.setQuality(params.id, (await json()).quality)) }));
@@ -233,4 +236,7 @@ function registerComposeRoutes(router, { compose, present, videos }) {
   });
 }
 
-module.exports = { createComposeService, registerComposeRoutes, assSubtitles, timeline, TRACKS, DEFAULT_AUDIO };
+module.exports = {
+  createComposeService, registerComposeRoutes, assSubtitles, timeline, TRACKS, DEFAULT_AUDIO,
+  SUBTITLE_STYLES, FONT_DIR, subtitleStyleFor, formatSubtitle, splitSubtitle, subtitleFilter,
+};

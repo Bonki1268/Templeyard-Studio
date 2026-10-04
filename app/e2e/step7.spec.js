@@ -16,6 +16,19 @@ test.describe.serial('步驟 7 影片生成', () => {
     await expect(page.getByTestId('clip').filter({ hasText: '已完成' })).toHaveCount(10, { timeout: 60_000 });
   });
 
+  test('場景：在影片生成頁選擇字幕樣式並預覽', async ({ page }) => {
+    await page.goto(`/#/videos/${ctx.video.id}/7`);
+    const select = page.getByLabel('字幕樣式');
+    await expect(select.locator('option:checked')).toHaveText('自動（依系列風格：人文宋體）');
+    const preview = page.getByTestId('subtitle-preview');
+    await expect(preview).toHaveClass(/sub-serif/);
+    await expect(preview).not.toContainText('，');
+    await select.selectOption({ label: '紀錄片底條' });
+    await expect(page.getByTestId('subtitle-preview')).toHaveClass(/sub-documentary/);
+    await page.getByLabel('字幕樣式').selectOption('auto');
+    await expect(page.getByTestId('subtitle-preview')).toHaveClass(/sub-serif/);
+  });
+
   test('場景：選一格依指令重生分鏡影片', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/7`);
     await page.getByTestId('clip').nth(1).click();

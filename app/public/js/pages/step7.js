@@ -13,6 +13,7 @@ export async function render({ video, refreshCost }) {
   let v = video;
   let current = v.script.shots[0]?.id;
   let tracks = (await api('GET', `${base}/music`)).tracks;
+  let subs = await api('GET', `${base}/subtitles`); // 字幕樣式選項與每格排版後的段落
   const root = h('div');
   let polling = false;
 
@@ -54,7 +55,8 @@ export async function render({ video, refreshCost }) {
     return h('div', { class: 'stack', 'data-testid': 'preview' },
       h('div', { style: 'position:relative;background:var(--ink);border-radius:16px;aspect-ratio:16/9;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#C9CDD3' },
         src ? h('video', { src, controls: true, style: 'width:100%;height:100%', preload: 'metadata' }) : '成品預覽',
-        !final && clip && shot.subtitle ? h('div', { style: 'position:absolute;bottom:6%;left:0;right:0;text-align:center;color:#fff;font-size:20px;text-shadow:0 0 4px #000;pointer-events:none' }, shot.subtitle) : null),
+        !final && clip && subs.segments[shot.id]?.length && v.audio?.subtitles !== false
+          ? h('div', { class: `sub-preview sub-${subs.resolved}`, 'data-testid': 'subtitle-preview' }, h('span', {}, subs.segments[shot.id][0])) : null),
       h('p', { class: 'small muted', 'data-testid': 'final-info' },
         final ? `成品 ${fmt(final.duration)}・${final.width}×${final.height}・${Math.round(final.fps)} fps`
           : v.final?.status === 'composing' ? '成品合成中…'
@@ -113,6 +115,11 @@ export async function render({ video, refreshCost }) {
         return data;
       });
     } });
+    const styleLabel = id => subs.styles.find(x => x.id === id)?.label || id;
+    const subtitleStyle = h('select', { id: 'subtitle-style', class: 'input', disabled: audio.subtitles === false,
+      onchange: e => run(null, () => api('PUT', `${base}/audio`, { subtitleStyle: e.target.value })) },
+      h('option', { value: 'auto', selected: subs.current === 'auto' }, `自動（依系列風格：${styleLabel(subs.auto)}）`),
+      subs.styles.map(x => h('option', { value: x.id, selected: subs.current === x.id }, x.label)));
     const voice = (value, label) => h('label', { class: 'opt', style: 'width:100%' },
       h('input', { type: 'radio', name: 'voiceMode', value, checked: (audio.voiceMode || 'native') === value, onchange: () => run(null, () => api('PUT', `${base}/audio`, { voiceMode: value })) }), label);
     const allClips = v.script.shots.every(s => selectedClip(s));
@@ -126,6 +133,7 @@ export async function render({ video, refreshCost }) {
         h('label', { for: 'music', class: 'small muted' }, '背景音樂'), music,
         h('button', { class: 'btn btn-sm', style: 'align-self:flex-start', onclick: () => upload.click() }, '上傳自己的音樂'), upload,
         h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: audio.subtitles !== false, onchange: e => run(null, () => api('PUT', `${base}/audio`, { subtitles: e.target.checked })) }), '燒錄繁中字幕（下方置中、白字）'),
+        h('label', { for: 'subtitle-style', class: 'small muted' }, '字幕樣式'), subtitleStyle,
         composeBtn),
       h('section', { class: 'card stack' }, h('h2', {}, '成品檢查'),
         FINAL_QUALITY.map(([k, label]) => h('label', { class: 'check' }, h('input', { type: 'checkbox', disabled: !final, checked: Boolean(final?.quality?.[k]),
@@ -133,6 +141,7 @@ export async function render({ video, refreshCost }) {
   }
 
   async function draw() {
+    subs = await api('GET', `${base}/subtitles`);
     const anyClips = v.script.shots.some(s => v.clips[s.id]);
     if (!anyClips) {
       const est = await api('GET', `${base}/estimate/clips`);

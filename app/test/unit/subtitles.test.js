@@ -18,8 +18,9 @@ test('場景：字幕為繁體中文白字、置於畫面下方置中', () => {
   assert.equal(fields[18], '2', '下方置中（Alignment 2）');
   const dialogues = ass.split('\n').filter(l => l.startsWith('Dialogue:'));
   assert.equal(dialogues.length, 2, '沒有字幕的格子不出現');
-  assert.match(dialogues[0], /0:00:00\.00,0:00:03\.00,Default,,0,0,0,,淡水・鄞山寺$/);
-  assert.match(dialogues[1], /0:00:03\.00,0:00:07\.00,Default,,0,0,0,,這座廟，藏著老一輩才知道的故事。$/);
+  assert.match(dialogues[0], /0:00:00\.00,0:00:03\.00,Default,,0,0,0,,\{[^}]*\}淡水・鄞山寺$/);
+  // 標點依電影字幕慣例處理（見 29-字幕品質.feature）；文字前是淡入淡出等樣式標籤。
+  assert.match(dialogues[1], /0:00:03\.00,0:00:07\.00,Default,,0,0,0,,\{[^}]*\}這座廟　藏著老一輩才知道的故事$/);
 });
 
 test('timeline 計算每格的開始時間', () => {
