@@ -1,5 +1,5 @@
 // 影片頁外框：麵包屑、步驟列、費用，並依步驟載入內容。
-import { h, api, money, ApiError } from '../ui.js';
+import { h, api, money, ApiError, syncOverlay } from '../ui.js';
 
 export const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '寺廟背景板', 4: '故事腳本', 5: '角色設計', 6: '精緻圖', 7: '影片生成' };
 
@@ -26,13 +26,14 @@ export async function withConsent(run) {
 
 export function confirmDialog(title, detail) {
   return new Promise(resolve => {
-    const close = v => { back.remove(); resolve(v); };
+    const close = v => { back.remove(); syncOverlay(); resolve(v); };
     const back = h('div', { class: 'modal-back' }, h('div', { class: 'modal', role: 'dialog', 'aria-label': '費用確認' },
       h('h2', {}, '需要再次同意費用'), h('p', {}, title), detail ? h('p', { class: 'small muted' }, detail) : null,
       h('div', { class: 'row', style: 'justify-content:flex-end' },
         h('button', { class: 'btn', onclick: () => close(false) }, '取消'),
         h('button', { class: 'btn btn-primary', onclick: () => close(true) }, '同意並繼續'))));
     document.body.append(back);
+    syncOverlay();
   });
 }
 

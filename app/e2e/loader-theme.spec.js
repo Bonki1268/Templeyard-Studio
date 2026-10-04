@@ -35,6 +35,29 @@ test.describe('生成等待動畫與深色介面', () => {
     await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
   });
 
+  test('場景：等待生成時跳出費用確認仍可以操作', async ({ page, request }) => {
+    const { video } = await videoAtStep(request, 7);
+    let release;
+    const gate = new Promise(r => { release = r; });
+    // 第一次（未同意）延後回覆 402，讓「生成中」先出現；同意後的請求也先擋住，確認動畫會再出現。
+    await page.route(/\/clips\/generate$/, async route => {
+      const body = route.request().postDataJSON() || {};
+      if (!body.consent) { await new Promise(r => setTimeout(r, 900)); return route.continue(); }
+      await gate;
+      return route.continue();
+    });
+    await page.goto(`/#/videos/${video.id}/7`);
+    await page.getByRole('button', { name: /生成分鏡影片/ }).click();
+    const dialog = page.getByRole('dialog', { name: '費用確認' });
+    await expect(dialog).toBeVisible();
+    await expect(page.getByTestId('busy-overlay')).toHaveCount(0);
+    await dialog.getByRole('button', { name: '同意並繼續' }).click({ timeout: 3000 });
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId('busy-overlay')).toBeVisible();
+    release();
+    await expect(page.getByTestId('busy-overlay')).toHaveCount(0);
+  });
+
   test('場景：精緻圖生成中的格子顯示粒子動畫', async ({ page, request }) => {
     const { video } = await videoAtStep(request, 6);
     await patchVideo(page, video.id, v => {
