@@ -74,5 +74,7 @@ test('場景：用假實作從建立系列走完 6 個步驟並下載成品', as
   // 系列頁：影片已完成、系列角色已鎖定
   await page.getByRole('link', { name: '淡水廟宇故事' }).click();
   await expect(page.getByTestId('video-item')).toContainText('已完成');
-  await expect(page.getByTestId('series-character')).toContainText('已鎖定');
+  await expect(page.getByTestId('series-character')).toContainText('導覽員小晴');
+  await page.getByRole('link', { name: /角色庫/ }).click();
+  await expect(page.getByTestId('library-character').filter({ hasText: '導覽員小晴' })).toContainText('已鎖定');
 });

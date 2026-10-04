@@ -1,12 +1,14 @@
-// 前端路由：#/、#/series/:id、#/videos/:id/:step
+// 前端路由：#/、#/series/:id、#/series/:id/characters、#/videos/:id/:step
 import { h, mount } from './ui.js';
 import { homePage } from './pages/home.js';
 import { seriesPage } from './pages/series.js';
+import { charactersPage } from './pages/characters.js';
 import { videoPage } from './pages/video.js';
 
 const routes = [
   [/^#?\/?$/, () => homePage()],
   [/^#\/series\/([^/]+)$/, m => seriesPage(m[1])],
+  [/^#\/series\/([^/]+)\/characters$/, m => charactersPage(m[1])],
   [/^#\/videos\/([^/]+)\/([2-6])$/, m => videoPage(m[1], m[2])],
 ];
 

@@ -1,4 +1,4 @@
-// 系列角色的 AI 輔助：依構想撰寫外觀描述、產生三視圖與定裝圖、鎖定定裝版本。
+// 系列角色（角色庫）：依構想撰寫外觀描述、產生三視圖與定裝圖、鎖定定裝版本、刪除角色。
 // 費用記在系列帳（series:<id>）上；鎖定的版本讓之後新增的影片在角色設計步驟直接沿用。
 const { unprocessable, notFound } = require('../http');
 const { estimateCost } = require('../cost/prices');
@@ -67,6 +67,12 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
       });
     },
 
+    // 刪除後舊設定保存在系列歷史中；已建立的影片保有自己的系列快照，不受影響。
+    remove(id, cid) {
+      find(series.get(id), cid);
+      return store.update('series', id, s => { s.characters = s.characters.filter(c => c.id !== cid); });
+    },
+
     update(id, cid, patch) {
       series.get(id);
       return mutate(id, cid, c => {
@@ -87,12 +93,14 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
 }
 
 function registerSeriesCharacterRoutes(router, { seriesCharacters, present }) {
+  // DELETE 回傳整個系列，讓角色庫與系列頁直接更新清單。
   const base = '/api/series/:id';
   const reply = character => ({ character: present(character) });
   router.get(`${base}/estimate/characters`, () => seriesCharacters.estimate());
   router.get(`${base}/cost`, ({ params }) => ({ cost: seriesCharacters.cost(params.id) }));
   router.post(`${base}/characters/draft`, async ({ params, json }) => seriesCharacters.draft(params.id, await json()));
   router.post(`${base}/characters/:cid/generate`, async ({ params, json }) => reply(await seriesCharacters.generate(params.id, params.cid, await json())));
+  router.delete(`${base}/characters/:cid`, ({ params }) => ({ series: present(seriesCharacters.remove(params.id, params.cid)) }));
   router.patch(`${base}/characters/:cid`, async ({ params, json }) => reply(seriesCharacters.update(params.id, params.cid, await json())));
 }
 

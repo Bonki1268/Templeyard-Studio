@@ -35,6 +35,7 @@ test.describe.serial('步驟 4 角色設計', () => {
     await expect(page).toHaveURL(new RegExp(`#/videos/${ctx.video.id}/5$`));
     await page.goto(`/#/series/${ctx.series.id}`);
     await expect(page.getByTestId('series-character')).toContainText('導覽員');
-    await expect(page.getByTestId('series-character')).toContainText('已鎖定');
+    await page.getByRole('link', { name: /角色庫/ }).click();
+    await expect(page.getByTestId('library-character').filter({ hasText: '導覽員' })).toContainText('已鎖定');
   });
 });
