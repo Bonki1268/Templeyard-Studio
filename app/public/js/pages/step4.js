@@ -1,5 +1,5 @@
 // 步驟 4：故事腳本與分鏡。
-import { h, api, toast, money } from '../ui.js';
+import { h, api, toast, money, setBusy } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
 
 const SIZES = ['遠景', '中景', '特寫'];
@@ -11,7 +11,7 @@ export async function render({ video, refreshCost }) {
   const root = h('div');
 
   async function run(button, fn) {
-    if (button) button.disabled = true;
+    setBusy(button, true);
     try {
       const r = await withConsent(fn);
       v = { ...r.video, viewStep: 4 };
@@ -19,7 +19,7 @@ export async function render({ video, refreshCost }) {
       draw();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
-    } finally { if (button) button.disabled = false; }
+    } finally { setBusy(button, false); }
   }
 
   async function drawEmpty() {
@@ -105,7 +105,7 @@ export async function render({ video, refreshCost }) {
           h('div', {}, h('h1', {}, `故事腳本：${s.title}`), h('p', {}, s.logline)),
           h('div', { class: 'stack', style: 'gap:6px;min-width:240px' },
             h('span', { class: 'small muted', 'data-testid': 'total' }, `總長度 ${total}／${v.series.duration} 秒・${s.shots.length} 格`),
-            h('div', { style: `height:6px;border-radius:3px;background:${ok ? 'var(--accent)' : '#E8B4AA'}` }),
+            h('div', { style: `height:6px;border-radius:3px;background:${ok ? 'var(--accent)' : 'var(--line-strong)'}` }),
             h('span', { class: 'small muted', 'data-testid': 'script-version' }, `腳本第 ${s.version} 版${s.instruction ? `・指令：${s.instruction}` : ''}`))),
         staleNotice(v, 3),
         h('details', { class: 'card', style: 'margin-bottom:16px' }, h('summary', { style: 'cursor:pointer;font-weight:500' }, '廣告腳本全文'), h('p', { style: 'margin-top:10px;line-height:1.8' }, s.adCopy)),

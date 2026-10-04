@@ -1,6 +1,7 @@
 // 步驟 7：影片生成（分鏡影片、聲音與字幕、成品合成、確認與下載）。
-import { h, api, toast, money } from '../ui.js';
+import { h, api, toast, money, setBusy } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
+import { loader } from '../loader.js';
 
 const CLIP_QUALITY = [['face', '角色沒有變臉'], ['lipsync', '台詞口型對得上'], ['hands', '手部與文字沒有變形'], ['temple', '廟宇建築與照片一致']];
 const FINAL_QUALITY = [['face', '每格角色都沒有變臉'], ['lipsync', '台詞口型對得上'], ['subtitles', '字幕與台詞一致'], ['duration', '總長度 30 秒以內']];
@@ -32,7 +33,7 @@ export async function render({ video, refreshCost }) {
   }
 
   async function run(button, fn) {
-    if (button) button.disabled = true;
+    setBusy(button, true);
     try {
       const r = await withConsent(fn);
       if (r.video) v = { ...r.video, viewStep: 7 };
@@ -42,7 +43,7 @@ export async function render({ video, refreshCost }) {
       refreshCost();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
-    } finally { if (button) button.disabled = false; }
+    } finally { setBusy(button, false); }
   }
 
   const selectedClip = shot => { const c = v.clips[shot.id]; return c?.versions.find(x => x.id === c.selected); };
@@ -53,8 +54,9 @@ export async function render({ video, refreshCost }) {
     const clip = shot && selectedClip(shot);
     const src = final ? final.url : clip?.url;
     return h('div', { class: 'stack', 'data-testid': 'preview' },
-      h('div', { style: 'position:relative;background:var(--ink);border-radius:16px;aspect-ratio:16/9;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#C9CDD3' },
-        src ? h('video', { src, controls: true, style: 'width:100%;height:100%', preload: 'metadata' }) : '成品預覽',
+      h('div', { class: 'screen' },
+        v.final?.status === 'composing' ? loader('成品合成中', { size: 140, key: 'compose', hint: '串接分鏡、配音、背景音樂並燒錄字幕' })
+        : src ? h('video', { src, controls: true, style: 'width:100%;height:100%', preload: 'metadata' }) : '成品預覽',
         !final && clip && subs.segments[shot.id]?.length && v.audio?.subtitles !== false
           ? h('div', { class: `sub-preview sub-${subs.resolved}`, 'data-testid': 'subtitle-preview' }, h('span', {}, subs.segments[shot.id][0])) : null),
       h('p', { class: 'small muted', 'data-testid': 'final-info' },
@@ -70,9 +72,10 @@ export async function render({ video, refreshCost }) {
       const st = c?.status || 'idle';
       const frame = v.frames[s.id]?.candidates.find(x => x.id === v.frames[s.id].selected);
       return h('button', { class: `card${s.id === current ? ' selected' : ''}`, 'data-testid': 'clip', style: 'padding:8px;cursor:pointer;text-align:left;font:inherit', onclick: () => { current = s.id; draw(); } },
-        h('div', { class: 'ph', style: 'aspect-ratio:16/9;border-radius:8px' }, frame ? h('img', { src: frame.url, alt: '' }) : `第 ${s.index} 格`),
+        h('div', { class: 'ph', style: 'aspect-ratio:16/9;border-radius:8px;position:relative' }, frame ? h('img', { src: frame.url, alt: '' }) : `第 ${s.index} 格`,
+          ['running', 'queued'].includes(st) ? h('div', { class: 'ph-cover' }, loader(STATUS[st], { size: 34, compact: true, speed: st === 'queued' ? 0.35 : 1, key: `clip-${s.id}` })) : null),
         h('div', { class: 'row small', style: 'justify-content:space-between;margin-top:6px' }, h('span', {}, `${s.seconds}s`),
-          h('span', { style: { color: st === 'failed' ? 'var(--accent)' : st === 'done' ? 'var(--ok)' : 'var(--muted)' } }, STATUS[st])));
+          h('span', { style: { color: st === 'failed' ? 'var(--danger)' : st === 'done' ? 'var(--ok)' : 'var(--muted)' } }, STATUS[st])));
     }));
   }
 

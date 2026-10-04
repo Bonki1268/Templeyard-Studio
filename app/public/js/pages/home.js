@@ -1,5 +1,5 @@
 // 首頁：建立系列專案，並列出已建立的系列。
-import { h, api, radios } from '../ui.js';
+import { h, api, radios, setBusy } from '../ui.js';
 
 const STYLES = ['溫暖寫實・黃昏自然光', '明亮清新・白天', '紀錄片質感'];
 const DIRECTIONS = ['在地歷史故事', '節慶宣傳', '景點導覽'];
@@ -30,10 +30,10 @@ export function seriesForm({ initial = {}, submitLabel, onSubmit, withCharacter 
     error.textContent = '';
     const body = { name: name.value, style: style.value(), styleNote: styleNote.value, duration, direction: direction.value() };
     if (withCharacter && charName.value.trim()) body.characters = [{ name: charName.value, description: charDesc.value }];
-    submit.disabled = true;
+    setBusy(submit, true);
     try { await onSubmit(body); } catch (err) {
       error.textContent = err.data?.details ? err.data.details.map(d => d.message).join('；') : err.message;
-    } finally { submit.disabled = false; }
+    } finally { setBusy(submit, false); }
   } },
     h('div', { class: 'field' }, h('label', { for: 'series-name' }, '系列名稱'), name),
     h('fieldset', { class: 'stack', style: 'gap:10px' }, h('legend', {}, '整體視覺風格'), style.el,

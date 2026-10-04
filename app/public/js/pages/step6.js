@@ -1,6 +1,7 @@
 // 步驟 6：精緻圖模擬。分鏡膠捲逐格顯示進度，完成一格就填上一格。
-import { h, api, toast, money } from '../ui.js';
+import { h, api, toast, money, setBusy } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
+import { loader } from '../loader.js';
 
 const QUALITY = [
   ['face', '角色臉、髮型、服裝與定妝板一致'],
@@ -31,7 +32,7 @@ export async function render({ video, refreshCost }) {
   }
 
   async function run(button, fn) {
-    if (button) button.disabled = true;
+    setBusy(button, true);
     try {
       const r = await withConsent(fn);
       v = { ...r.video, viewStep: 6 };
@@ -39,21 +40,21 @@ export async function render({ video, refreshCost }) {
       poll();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
-    } finally { if (button) button.disabled = false; }
+    } finally { setBusy(button, false); }
   }
 
   function strip() {
-    return h('div', { style: 'background:var(--ink);border-radius:16px;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px', role: 'list', 'aria-label': '分鏡膠捲' },
+    return h('div', { class: 'filmstrip', style: 'display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px', role: 'list', 'aria-label': '分鏡膠捲' },
       v.script.shots.map(s => {
         const f = v.frames[s.id] || {};
         const sel = f.candidates?.find(c => c.id === f.selected);
         const inner = sel ? h('img', { src: sel.url, alt: `第 ${s.index} 格精緻圖` })
-          : f.status === 'running' ? h('span', { style: 'color:#fff' }, '生成中')
-          : f.status === 'queued' ? h('span', { style: 'color:#ccc' }, '等待中')
-          : f.status === 'failed' ? h('span', { style: 'color:#F0C9C2' }, '失敗') : String(s.index);
+          : f.status === 'running' ? loader('生成中', { size: 34, compact: true, key: `frame-${s.id}` })
+          : f.status === 'queued' ? loader('等待中', { size: 34, compact: true, speed: 0.35, key: `frame-${s.id}` })
+          : f.status === 'failed' ? h('span', { style: 'color:var(--danger)' }, '失敗') : String(s.index);
         return h('button', { role: 'listitem', 'data-testid': 'strip-frame', style: 'background:none;border:0;padding:0;cursor:pointer;text-align:left;font:inherit', onclick: () => { current = s.id; draw(); } },
-          h('div', { class: `ph${s.id === current ? ' selected' : ''}`, style: `aspect-ratio:16/9;border-radius:8px;${sel ? '' : 'border:1px dashed #8A909A;background:#2A2D34'}` }, inner),
-          h('span', { class: 'small', style: 'color:#C9CDD3;display:block;margin-top:6px' }, `第 ${s.index} 格・${s.shotSize}`));
+          h('div', { class: `ph${s.id === current ? ' selected' : ''}`, style: `aspect-ratio:16/9;border-radius:8px;${sel ? '' : 'border:1px dashed var(--line-strong);background:var(--panel-2)'}` }, inner),
+          h('span', { class: 'small muted', style: 'display:block;margin-top:6px' }, `第 ${s.index} 格・${s.shotSize}`));
       }));
   }
 
@@ -70,7 +71,10 @@ export async function render({ video, refreshCost }) {
       h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', {}, `第 ${shot.index} 格：${shot.action}`),
         h('span', { class: 'small muted' }, `${shot.shotSize}${shot.photoIndex ? `・照片 ${shot.photoIndex}` : ''}・${shot.seconds} 秒`)),
       h('div', { class: 'ph', style: 'aspect-ratio:16/9;border-radius:12px' },
-        sel ? h('img', { src: sel.url, alt: `第 ${shot.index} 格精緻圖（1920×1080）` }) : f.status === 'failed' ? `生成失敗：${f.error}` : '精緻圖（1920×1080）'),
+        sel ? h('img', { src: sel.url, alt: `第 ${shot.index} 格精緻圖（1920×1080）` })
+          : f.status === 'running' ? loader('精緻圖生成中', { size: 120, key: `frame-detail-${shot.id}` })
+          : f.status === 'queued' ? loader('等待生成', { size: 120, speed: 0.35, key: `frame-detail-${shot.id}` })
+          : f.status === 'failed' ? `生成失敗：${f.error}` : '精緻圖（1920×1080）'),
       f.candidates.length ? h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'label' }, '候選版本'),
         h('div', { class: 'row' }, f.candidates.map((c, i) => h('button', {
           class: `btn btn-sm${c.id === f.selected ? ' selected' : ''}`, 'data-testid': 'candidate',

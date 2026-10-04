@@ -1,5 +1,5 @@
 // 步驟 3：寺廟背景板（四格：正面全景、斜角／側面、廟埕與周邊環境、特色細節），確保影片中的寺廟一致。
-import { h, api, toast, money } from '../ui.js';
+import { h, api, toast, money, setBusy } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
 
 const PANELS = [
@@ -16,7 +16,7 @@ export async function render({ video, refreshCost }) {
   const est = await api('GET', `${base}/estimate/temple-board`).catch(() => ({ estimate: 0 }));
 
   async function run(button, fn) {
-    if (button) button.disabled = true;
+    setBusy(button, true);
     try {
       const r = await withConsent(fn);
       v = { ...r.video, viewStep: 3 };
@@ -24,7 +24,7 @@ export async function render({ video, refreshCost }) {
       draw();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
-    } finally { if (button) button.disabled = false; }
+    } finally { setBusy(button, false); }
   }
 
   function draw() {

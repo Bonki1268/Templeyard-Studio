@@ -1,5 +1,5 @@
 // 角色庫：一個系列的共同角色。新增（AI 撰寫描述）、刪除、產生四格定妝板、鎖定定裝版本、選擇語音並試聽。
-import { h, api, mount, toast, money } from '../ui.js';
+import { h, api, mount, toast, money, setBusy } from '../ui.js';
 import { withConsent } from './video.js';
 import { boardImage, boardView } from './board.js';
 
@@ -17,8 +17,8 @@ export async function charactersPage(id) {
   const previews = {}; // 角色 id → 試聽音訊網址
 
   async function run(button, fn) {
-    if (button) button.disabled = true;
-    try { return await withConsent(fn); } catch (err) { if (err.code !== 'cancelled') toast(err.message); return null; } finally { if (button) button.disabled = false; }
+    setBusy(button, true);
+    try { return await withConsent(fn); } catch (err) { if (err.code !== 'cancelled') toast(err.message); return null; } finally { setBusy(button, false); }
   }
   const replace = c => { series.characters = series.characters.map(x => (x.id === c.id ? c : x)); draw(); };
 

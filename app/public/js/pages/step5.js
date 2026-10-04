@@ -1,5 +1,5 @@
 // 步驟 5：角色設計（四格定妝板、版本、加入系列角色）。
-import { h, api, toast, money } from '../ui.js';
+import { h, api, toast, money, setBusy } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
 import { boardImage, boardView } from './board.js';
 
@@ -11,7 +11,7 @@ export async function render({ video, refreshCost }) {
   const root = h('div');
 
   async function run(button, fn) {
-    if (button) button.disabled = true;
+    setBusy(button, true);
     try {
       const r = await withConsent(fn);
       v = { ...r.video, viewStep: 5 };
@@ -20,7 +20,7 @@ export async function render({ video, refreshCost }) {
       await draw();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
-    } finally { if (button) button.disabled = false; }
+    } finally { setBusy(button, false); }
   }
 
   function costumeOf(c) {

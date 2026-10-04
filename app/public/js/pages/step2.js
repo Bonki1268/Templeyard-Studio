@@ -1,5 +1,5 @@
 // 步驟 2：選擇寺廟、上傳照片（去識別）、故事與 AI 潤飾。
-import { h, api, toast } from '../ui.js';
+import { h, api, toast, setBusy } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
 
 const KIND = { face: '人臉', plate: '車牌' };
@@ -13,7 +13,7 @@ export async function render({ video, refreshCost }) {
   const search = h('input', { id: 'temple-search', class: 'input', type: 'search', placeholder: '例如：淡水、鄞山寺、媽祖', 'aria-label': '搜尋廟名、行政區或主祀神明' });
   const results = h('div', { class: 'stack', style: 'gap:8px;max-height:420px;overflow-y:auto;padding:2px', role: 'list' });
   const count = h('p', { class: 'small muted', 'data-testid': 'temple-count' });
-  const detail = h('div', { class: 'stack', style: 'background:#F7F8FA;border-radius:12px;padding:20px;gap:10px', 'data-testid': 'temple-detail' });
+  const detail = h('div', { class: 'stack inset', style: 'padding:20px;gap:10px', 'data-testid': 'temple-detail' });
   let timer;
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(doSearch, 200); });
   async function doSearch() {
@@ -70,7 +70,7 @@ export async function render({ video, refreshCost }) {
     frame.append(overlay);
     const drawBoxes = () => overlay.replaceChildren(...p.regions.map(r => h('div', { style: {
       position: 'absolute', left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%`,
-      border: `2px ${r.enabled ? 'solid' : 'dashed'} ${r.enabled ? '#A8321F' : '#8A909A'}`, borderRadius: '4px' } })));
+      border: `2px ${r.enabled ? 'solid' : 'dashed'} ${r.enabled ? 'var(--accent)' : 'rgba(255,255,255,.55)'}`, borderRadius: '4px' } })));
     // 在照片上拖曳即可手動加框
     let start = null;
     overlay.addEventListener('mousedown', e => { const b = overlay.getBoundingClientRect(); start = { x: (e.clientX - b.left) / b.width, y: (e.clientY - b.top) / b.height }; });
@@ -115,7 +115,7 @@ export async function render({ video, refreshCost }) {
     const photos = v.photos.filter(p => p.status !== 'removed');
     photoCount.textContent = `${photos.length}／5 張・上傳後自動遮蔽人臉與車牌，神像不遮`;
     photoGrid.replaceChildren(...photos.map(photoCard),
-      photos.length < 5 ? h('button', { class: 'ph', type: 'button', style: 'aspect-ratio:16/9;border-radius:10px;border:1px dashed #8A909A;background:#fff;cursor:pointer;font:inherit', onclick: () => fileInput.click() },
+      photos.length < 5 ? h('button', { class: 'ph', type: 'button', style: 'aspect-ratio:16/9;border-radius:10px;border:1px dashed var(--line-strong);background:var(--panel-2);color:var(--ink-2);cursor:pointer;font:inherit', onclick: () => fileInput.click() },
         `↑ 上傳照片（還可以 ${5 - photos.length} 張）`) : null);
   }
 
@@ -124,14 +124,14 @@ export async function render({ video, refreshCost }) {
   story.addEventListener('change', async () => update((await api('PUT', `${base}/story`, { text: story.value })).video));
   const polishInstruction = h('input', { class: 'input', placeholder: '（選填）潤飾指令，例如：語氣再口語一點', 'aria-label': '潤飾指令' });
   const polishBtn = h('button', { class: 'btn', type: 'button', onclick: async () => {
-    polishBtn.disabled = true;
+    setBusy(polishBtn, true);
     try {
       if (story.value.trim() !== (v.story.original || '')) await api('PUT', `${base}/story`, { text: story.value });
       const r = await withConsent(consent => api('POST', `${base}/story/polish`, { instruction: polishInstruction.value, consent }));
       update(r.video); refreshCost();
-    } catch (err) { toast(err.message); } finally { polishBtn.disabled = false; }
+    } catch (err) { toast(err.message); } finally { setBusy(polishBtn, false); }
   } }, '✦ AI 潤飾');
-  const polishedBox = h('div', { class: 'stack', style: 'background:#F7F8FA;border-radius:12px;padding:20px;gap:10px' });
+  const polishedBox = h('div', { class: 'stack inset', style: 'padding:20px;gap:10px' });
   const choice = h('p', { class: 'small', 'data-testid': 'story-choice' });
 
   function renderStory() {
@@ -157,11 +157,11 @@ export async function render({ video, refreshCost }) {
   // ---- 確認列 ----
   const conditions = h('div', { class: 'row small', 'data-testid': 'conditions', style: 'gap:16px' });
   const confirmBtn = h('button', { class: 'btn btn-primary', type: 'button', onclick: async () => {
-    confirmBtn.disabled = true;
+    setBusy(confirmBtn, true);
     try {
       await api('POST', `${base}/steps/2/confirm`);
       location.hash = `#/videos/${v.id}/3`;
-    } catch (err) { toast(err.message); confirmBtn.disabled = false; }
+    } catch (err) { toast(err.message); setBusy(confirmBtn, false); }
   } }, '確認，產生寺廟背景板');
   function renderConditions() {
     const ready = v.photos.filter(p => p.status === 'ready').length;
