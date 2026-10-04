@@ -1,45 +1,51 @@
-const fs = require('node:fs');
 const { test, expect } = require('@playwright/test');
 const { videoAtStep } = require('./helpers');
 
-test.describe.serial('步驟 6 影片生成', () => {
+test.describe.serial('步驟 6 精緻圖', () => {
   let ctx;
   test.beforeAll(async ({ request }) => { ctx = await videoAtStep(request, 6); });
 
-  test('場景：生成分鏡影片前顯示預估費用並需再次同意', async ({ page }) => {
+  test('場景：產生精緻圖前顯示預估費用', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/6`);
-    await page.getByRole('button', { name: /生成分鏡影片（預估 US\$\d+\.\d\d）/ }).click();
-    const dialog = page.getByRole('dialog', { name: '費用確認' });
-    await expect(dialog).toContainText('超過單筆門檻');
-    await dialog.getByRole('button', { name: '同意並繼續' }).click();
-    await expect(page.getByTestId('clip')).toHaveCount(10);
-    await expect(page.getByTestId('clip').filter({ hasText: '已完成' })).toHaveCount(10, { timeout: 60_000 });
+    await expect(page.getByRole('button', { name: /產生精緻圖（預估 US\$\d+\.\d\d）/ })).toBeVisible();
   });
 
-  test('場景：選一格依指令重生分鏡影片', async ({ page }) => {
+  test('場景：分鏡膠捲逐格顯示進度並填上精緻圖', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/6`);
-    await page.getByTestId('clip').nth(1).click();
-    await page.getByLabel('第 2 格的調整指令').fill('轉頭的動作慢一點，口型對準台詞');
+    await page.getByRole('button', { name: /產生精緻圖/ }).click();
+    await expect(page.getByTestId('strip-frame')).toHaveCount(10);
+    await expect(page.getByTestId('progress')).toContainText('10／10 格完成');
+    await expect(page.getByTestId('strip-frame').locator('img')).toHaveCount(10);
+  });
+
+  test('場景：點選膠捲中的一格查看大圖與候選版本', async ({ page }) => {
+    await page.goto(`/#/videos/${ctx.video.id}/6`);
+    await page.getByTestId('strip-frame').nth(1).click();
+    await expect(page.getByRole('heading', { name: /^第 2 格：/ })).toBeVisible();
+    await expect(page.getByTestId('candidate')).toHaveText(['版本 1・已選']);
+  });
+
+  test('場景：依指令重生並選定候選版本', async ({ page }) => {
+    await page.goto(`/#/videos/${ctx.video.id}/6`);
+    await page.getByTestId('strip-frame').nth(1).click();
+    await page.getByLabel('調整指令').fill('光線再暖一點，小晴往畫面左邊站');
     await page.getByRole('button', { name: '依指令重生' }).click();
-    await expect(page.getByRole('button', { name: 'v2', exact: true })).toHaveAttribute('aria-pressed', 'true', { timeout: 30_000 });
+    await expect(page.getByTestId('candidate')).toHaveText(['版本 1', '版本 2・已選']);
+    await page.getByTestId('candidate').first().click();
+    await expect(page.getByTestId('candidate')).toHaveText(['版本 1・已選', '版本 2']);
   });
 
-  test('場景：設定聲音與字幕後合成成品', async ({ page }) => {
+  test('場景：勾選品質檢查', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/6`);
-    await page.getByLabel('背景音樂').selectOption({ label: '柔和弦樂' });
-    await page.getByRole('button', { name: /合成成品/ }).click();
-    await expect(page.getByTestId('final-info')).toContainText('成品', { timeout: 60_000 });
-    await expect(page.getByTestId('preview').locator('video')).toHaveAttribute('src', /final-v\d+\.mp4/);
+    await page.getByLabel('角色臉、髮型、服裝與定妝板一致').check();
+    await expect(page.getByTestId('quality-saved')).toBeVisible();
+    await page.reload();
+    await expect(page.getByLabel('角色臉、髮型、服裝與定妝板一致')).toBeChecked();
   });
 
-  test('場景：確認成品後下載 MP4', async ({ page }) => {
+  test('場景：每格都有精緻圖後確認並前往影片生成', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/6`);
-    await page.getByRole('button', { name: '確認成品' }).click();
-    const downloadPromise = page.waitForEvent('download');
-    await page.getByRole('link', { name: '下載 MP4' }).click();
-    const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/\.mp4$/);
-    const file = await download.path();
-    expect(fs.statSync(file).size).toBeGreaterThan(1000);
+    await page.getByRole('button', { name: '確認精緻圖，生成影片' }).click();
+    await expect(page).toHaveURL(new RegExp(`#/videos/${ctx.video.id}/7$`));
   });
 });

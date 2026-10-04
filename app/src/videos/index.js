@@ -15,6 +15,13 @@ function createVideoService({ store, series }) {
   return {
     get,
     hooks,
+    // 舊資料升級為 7 個步驟（見 workflow.migrate）。
+    migrateAll() {
+      for (const v of store.list('videos')) {
+        const copy = structuredClone(v);
+        if (wf.migrate(copy)) store.update('videos', v.id, { steps: copy.steps, currentStep: copy.currentStep, status: copy.status, templeBoard: copy.templeBoard });
+      }
+    },
     create(seriesId) {
       const s = series.get(seriesId);
       return store.insert('videos', {
@@ -28,7 +35,7 @@ function createVideoService({ store, series }) {
           output: s.output, characters: s.characters,
         },
         costCap: s.costCap,
-        templeId: null, temple: null, templeHistory: '',
+        templeId: null, temple: null, templeHistory: '', templeBoard: null,
         photos: [],
         story: { original: '', polished: null, adopted: '', choice: null },
         script: null, characters: [], frames: {}, clips: {}, final: null, finals: [],

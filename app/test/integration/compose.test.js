@@ -8,7 +8,7 @@ const { probe, ffmpeg } = require('../../src/media/ffmpeg');
 const { tempDir } = require('../helpers');
 
 async function withClips(s, opts) {
-  const ctx = await videoAtStep(s, 6, opts);
+  const ctx = await videoAtStep(s, 7, opts);
   await s.post(`${ctx.base}/clips/generate`, { consent: true });
   await s.app.ctx.jobs.idle();
   return ctx;
@@ -51,7 +51,7 @@ test('成品合成（測試尺寸）', async t => {
   await t.test('場景：分鏡或聲音設定變更後需要重新合成', async () => {
     const r = await s.put(`${base}/audio`, { music: 'temple-drums' });
     assert.equal(r.data.video.final.stale, true);
-    const c = await s.post(`${base}/steps/6/confirm`);
+    const c = await s.post(`${base}/steps/7/confirm`);
     assert.equal(c.status, 422);
     assert.ok(c.data.error.unmet.some(u => /重新合成/.test(u)));
   });
@@ -93,7 +93,7 @@ test('成品合成（測試尺寸）', async t => {
   });
 
   await t.test('場景：確認成品後可以下載 MP4', async () => {
-    const c = await s.post(`${base}/steps/6/confirm`);
+    const c = await s.post(`${base}/steps/7/confirm`);
     assert.equal(c.status, 200);
     assert.equal(c.data.video.status, 'done');
     const r = await s.get(`${base}/download`);

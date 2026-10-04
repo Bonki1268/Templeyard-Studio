@@ -2,7 +2,7 @@
 // 費用記在系列帳（series:<id>）上；鎖定的版本讓之後新增的影片在角色設計步驟直接沿用。
 const { unprocessable, notFound } = require('../http');
 const { estimateCost } = require('../cost/prices');
-const { generateSheet } = require('../steps/step4');
+const { generateSheet } = require('../steps/step5');
 const { text } = require('../util');
 
 const STEP = 1;

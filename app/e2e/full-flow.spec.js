@@ -1,9 +1,9 @@
-// 端對端：只用網頁操作，從建立系列走完 6 步並下載成品（全程假實作，不花錢）。
+// 端對端：只用網頁操作，從建立系列走完 7 步並下載成品（全程假實作，不花錢）。
 const { execFileSync } = require('node:child_process');
 const { test, expect } = require('@playwright/test');
 const { testPhoto, STORY } = require('./helpers');
 
-test('場景：用假實作從建立系列走完 6 個步驟並下載成品', async ({ page }) => {
+test('場景：用假實作從建立系列走完 7 個步驟並下載成品', async ({ page }) => {
   test.setTimeout(300_000);
 
   // 步驟 1：建立系列專案
@@ -30,25 +30,30 @@ test('場景：用假實作從建立系列走完 6 個步驟並下載成品', as
   await page.getByRole('button', { name: 'AI 潤飾' }).click();
   await page.getByRole('button', { name: '採用潤飾版' }).click();
   await expect(page.getByTestId('story-choice')).toContainText('已採用潤飾版');
-  await page.getByRole('button', { name: '確認，產生故事腳本' }).click();
+  await page.getByRole('button', { name: '確認，產生寺廟背景板' }).click();
 
-  // 步驟 3：故事腳本
+  // 步驟 3：寺廟背景板
+  await page.getByRole('button', { name: /產生寺廟背景板/ }).click();
+  await expect(page.getByRole('img', { name: '寺廟背景板' })).toBeVisible();
+  await page.getByRole('button', { name: '確認背景板，產生故事腳本' }).click();
+
+  // 步驟 4：故事腳本
   await page.getByRole('button', { name: /產生腳本與分鏡圖/ }).click();
   await expect(page.getByTestId('shot')).toHaveCount(10);
   await expect(page.getByTestId('total')).toContainText('30／30 秒');
   await page.getByRole('button', { name: '確認腳本，進入角色設計' }).click();
 
-  // 步驟 4：角色設計（系列角色導覽員小晴第一次產生定裝圖）
+  // 步驟 5：角色設計（系列角色導覽員小晴第一次產生定裝圖）
   await page.getByRole('button', { name: /產生角色/ }).click();
   await expect(page.getByTestId('character-item')).toContainText('導覽員小晴');
   await page.getByRole('button', { name: '確認角色，產生精緻圖' }).click();
 
-  // 步驟 5：精緻圖
+  // 步驟 6：精緻圖
   await page.getByRole('button', { name: /產生精緻圖/ }).click();
   await expect(page.getByTestId('progress')).toContainText('10／10 格完成', { timeout: 60_000 });
   await page.getByRole('button', { name: '確認精緻圖，生成影片' }).click();
 
-  // 步驟 6：影片生成（超過單筆門檻，需再次同意）
+  // 步驟 7：影片生成（超過單筆門檻，需再次同意）
   await page.getByRole('button', { name: /生成分鏡影片/ }).click();
   await page.getByRole('dialog', { name: '費用確認' }).getByRole('button', { name: '同意並繼續' }).click();
   await expect(page.getByTestId('clip').filter({ hasText: '已完成' })).toHaveCount(10, { timeout: 120_000 });

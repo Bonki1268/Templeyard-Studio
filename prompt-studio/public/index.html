@@ -97,7 +97,7 @@
 </div>
 
 <script>
-const STEP_NAMES = { 1: '系列專案', 2: '新增影片', 3: '故事腳本', 4: '角色設計', 5: '精緻圖模擬', 6: '影片生成' };
+const STEP_NAMES = { 1: '系列專案', 2: '新增影片', 3: '寺廟背景板', 4: '故事腳本', 5: '角色設計', 6: '精緻圖模擬', 7: '影片生成' };
 const KIND_NAMES = { text: '文字', image: '圖片', video: '影片' };
 const PH = /\{\{\s*([a-zA-Z_][\w.]*)\s*\}\}/g;
 
@@ -175,7 +175,7 @@ function renderEditor() {
     <div class="grid">
       <div class="wide"><label for="f-name">名稱</label><input type="text" id="f-name" data-path="name" value="${esc(p.name)}"></div>
       <div><label for="f-step">流程步驟</label><select id="f-step" data-path="step" data-type="int">
-        ${[1,2,3,4,5,6].map(s => `<option value="${s}" ${s === p.step ? 'selected' : ''}>${s}・${STEP_NAMES[s]}</option>`).join('')}</select></div>
+        ${[1,2,3,4,5,6,7].map(s => `<option value="${s}" ${s === p.step ? 'selected' : ''}>${s}・${STEP_NAMES[s]}</option>`).join('')}</select></div>
       <div><label for="f-kind">生成類型</label><select id="f-kind" data-path="target.kind">
         ${Object.entries(KIND_NAMES).map(([k, v]) => `<option value="${k}" ${k === p.target.kind ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
       <div class="wide"><label for="f-desc">說明</label><input type="text" id="f-desc" data-path="description" value="${esc(p.description)}"></div>

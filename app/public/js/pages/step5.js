@@ -1,133 +1,91 @@
-// 步驟 5：精緻圖模擬。分鏡膠捲逐格顯示進度，完成一格就填上一格。
+// 步驟 5：角色設計（四格定妝板、版本、加入系列角色）。
 import { h, api, toast, money } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
+import { boardImage, boardView } from './board.js';
 
-const QUALITY = [
-  ['face', '角色臉、髮型、服裝與定妝板一致'],
-  ['temple', '廟宇建築與照片一致'],
-  ['hands', '手部與畫面中的文字沒有變形'],
-  ['people', '沒有可辨識的真實民眾'],
-];
 
 export async function render({ video, refreshCost }) {
   const base = `/api/videos/${video.id}`;
   let v = video;
-  let current = v.script.shots[0]?.id;
+  let current = v.characters[0]?.id || null;
   const root = h('div');
-  let polling = false;
-
-  const busy = () => v.script.shots.some(s => ['queued', 'running'].includes(v.frames[s.id]?.status));
-  async function poll() {
-    if (polling) return;
-    polling = true;
-    while (root.isConnected && busy()) {
-      await new Promise(r => setTimeout(r, 600));
-      if (!root.isConnected) break;
-      v = { ...(await api('GET', base)).video, viewStep: 5 };
-      await draw();
-    }
-    polling = false;
-    refreshCost();
-  }
 
   async function run(button, fn) {
     if (button) button.disabled = true;
     try {
       const r = await withConsent(fn);
       v = { ...r.video, viewStep: 5 };
+      if (!current || !v.characters.some(c => c.id === current)) current = v.characters[0]?.id || null;
+      refreshCost();
       await draw();
-      poll();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
     } finally { if (button) button.disabled = false; }
   }
 
-  function strip() {
-    return h('div', { style: 'background:var(--ink);border-radius:16px;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px', role: 'list', 'aria-label': '分鏡膠捲' },
-      v.script.shots.map(s => {
-        const f = v.frames[s.id] || {};
-        const sel = f.candidates?.find(c => c.id === f.selected);
-        const inner = sel ? h('img', { src: sel.url, alt: `第 ${s.index} 格精緻圖` })
-          : f.status === 'running' ? h('span', { style: 'color:#fff' }, '生成中')
-          : f.status === 'queued' ? h('span', { style: 'color:#ccc' }, '等待中')
-          : f.status === 'failed' ? h('span', { style: 'color:#F0C9C2' }, '失敗') : String(s.index);
-        return h('button', { role: 'listitem', 'data-testid': 'strip-frame', style: 'background:none;border:0;padding:0;cursor:pointer;text-align:left;font:inherit', onclick: () => { current = s.id; draw(); } },
-          h('div', { class: `ph${s.id === current ? ' selected' : ''}`, style: `aspect-ratio:16/9;border-radius:8px;${sel ? '' : 'border:1px dashed #8A909A;background:#2A2D34'}` }, inner),
-          h('span', { class: 'small', style: 'color:#C9CDD3;display:block;margin-top:6px' }, `第 ${s.index} 格・${s.shotSize}`));
-      }));
+  function costumeOf(c) {
+    return boardImage(c.versions.find(x => x.version === c.selectedVersion)?.images);
   }
 
-  function detail() {
-    const shot = v.script.shots.find(s => s.id === current) || v.script.shots[0];
-    const f = v.frames[shot.id] || { candidates: [], quality: {} };
-    const sel = f.candidates.find(c => c.id === f.selected);
-    const instruction = h('input', { id: 'frame-instruction', class: 'input', placeholder: '例如：光線再暖一點，小晴往畫面左邊站' });
-    const regen = (label, withInstruction) => {
-      const b = h('button', { class: 'btn', onclick: () => run(b, consent => api('POST', `${base}/frames/${shot.id}/regenerate`, { instruction: withInstruction ? instruction.value : '', consent })) }, label);
-      return b;
-    };
-    return h('section', { class: 'card stack', style: 'gap:14px' },
-      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', {}, `第 ${shot.index} 格：${shot.action}`),
-        h('span', { class: 'small muted' }, `${shot.shotSize}${shot.photoIndex ? `・照片 ${shot.photoIndex}` : ''}・${shot.seconds} 秒`)),
-      h('div', { class: 'ph', style: 'aspect-ratio:16/9;border-radius:12px' },
-        sel ? h('img', { src: sel.url, alt: `第 ${shot.index} 格精緻圖（1920×1080）` }) : f.status === 'failed' ? `生成失敗：${f.error}` : '精緻圖（1920×1080）'),
-      f.candidates.length ? h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'label' }, '候選版本'),
-        h('div', { class: 'row' }, f.candidates.map((c, i) => h('button', {
-          class: `btn btn-sm${c.id === f.selected ? ' selected' : ''}`, 'data-testid': 'candidate',
-          onclick: () => run(null, () => api('PATCH', `${base}/frames/${shot.id}`, { selected: c.id })),
-        }, `版本 ${i + 1}${c.id === f.selected ? '・已選' : ''}`)))) : null,
-      h('div', { class: 'field' }, h('label', { for: 'frame-instruction' }, '調整指令'),
-        h('div', { class: 'row', style: 'flex-wrap:nowrap' }, instruction, regen('依指令重生', true), regen('直接重生', false))));
+  function listItem(c) {
+    const img = costumeOf(c);
+    const status = c.reused ? '✓ 直接沿用系列角色' : c.lockedVersion ? `已鎖定 v${c.lockedVersion}` : '待確認';
+    return h('button', { class: `listcard${c.id === current ? ' selected' : ''}`, 'data-testid': 'character-item', style: 'cursor:pointer;font:inherit;text-align:left;width:100%',
+      onclick: () => { current = c.id; draw(); } },
+      h('span', { class: 'ph', style: 'width:56px;height:72px;border-radius:8px;flex:none;font-size:12px' }, img ? h('img', { src: img.url, alt: '' }) : '定裝'),
+      h('span', { class: 'stack', style: 'gap:2px' }, h('span', { style: 'font-size:16px;font-weight:500' }, c.name),
+        h('span', { class: 'small muted' }, `${c.source === 'series' ? '系列角色' : '本支新角色'}・v${c.selectedVersion}`),
+        h('span', { class: 'small', style: { color: c.reused ? 'var(--ok)' : 'var(--accent)' } }, status)));
   }
 
-  function qualityCard() {
-    const shot = v.script.shots.find(s => s.id === current) || v.script.shots[0];
-    const f = v.frames[shot.id];
-    const saved = h('span', { class: 'small', style: 'color:var(--ok);visibility:hidden', 'data-testid': 'quality-saved' }, '✓ 已儲存');
-    return h('section', { class: 'card stack' }, h('h2', {}, '品質檢查'), h('p', { class: 'small muted' }, '逐項確認，不合格就重生這一格。'),
-      QUALITY.map(([key, label]) => h('label', { class: 'check' }, h('input', {
-        type: 'checkbox', checked: Boolean(f?.quality?.[key]), disabled: !f?.candidates?.length,
-        onchange: async e => {
-          try {
-            const r = await api('PATCH', `${base}/frames/${shot.id}`, { quality: { [key]: e.target.checked } });
-            v = { ...r.video, viewStep: 5 };
-            saved.style.visibility = 'visible';
-          } catch (err) { toast(err.message); }
-        },
-      }), label)), saved);
+  function detail(c) {
+    const version = c.versions.find(x => x.version === c.selectedVersion);
+    const desc = h('textarea', { id: 'char-description', class: 'input' }, c.description || '');
+    const instruction = h('input', { id: 'char-instruction', class: 'input', placeholder: '例如：換成灰色唐裝、戴老花眼鏡' });
+    const regen = h('button', { class: 'btn', onclick: () => run(regen, consent => api('POST', `${base}/characters/${c.id}/regenerate`, { instruction: instruction.value, description: desc.value, consent })) }, '依指令重新生成');
+    const seriesLocked = c.source === 'series';
+    return h('section', { class: 'card stack', style: 'gap:16px' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { style: 'font-size:22px' }, c.name),
+        h('div', { class: 'row', style: 'gap:6px' }, c.versions.map(x => h('button', {
+          class: `btn btn-sm${x.version === c.selectedVersion ? ' btn-primary' : ''}`, 'aria-pressed': String(x.version === c.selectedVersion),
+          onclick: () => run(null, () => api('PATCH', `${base}/characters/${c.id}`, { selectedVersion: x.version })),
+        }, `v${x.version}`)))),
+      boardView(c.name, version?.images),
+      c.reused ? h('p', { class: 'small muted' }, `沿用系列角色的定妝板 v${c.selectedVersion}，不重新產生；需要修改時可依指令重新生成。`) : null,
+      h('div', { class: 'field' }, h('label', { for: 'char-description' }, '外觀描述（來自腳本，可修改）'), desc),
+      h('div', { class: 'field' }, h('label', { for: 'char-instruction' }, '調整指令'), h('div', { class: 'row', style: 'flex-wrap:nowrap' }, instruction, regen)),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: seriesLocked || c.addToSeries, disabled: seriesLocked,
+        onchange: e => run(null, () => api('PATCH', `${base}/characters/${c.id}`, { addToSeries: e.target.checked })) }),
+        seriesLocked ? '系列角色：確認後更新系列的定裝版本' : '確認後加入系列角色，之後的影片也能使用'));
   }
 
   async function draw() {
-    const anyFrames = v.script.shots.some(s => v.frames[s.id]);
-    if (!anyFrames) {
-      const est = await api('GET', `${base}/estimate/frames`);
-      const btn = h('button', { class: 'btn btn-primary', onclick: () => run(btn, consent => api('POST', `${base}/frames/generate`, { consent })) }, `產生精緻圖（預估 ${money(est.estimate)}）`);
-      root.replaceChildren(h('main', { class: 'main stack', style: 'gap:20px' }, h('h1', {}, '精緻圖模擬'), staleNotice(v, 5),
-        h('div', { class: 'card stack' }, h('p', {}, `以你的照片為場景、定妝板為角色，為 ${est.count} 格分鏡逐格產生精緻圖。`), h('div', {}, btn))),
+    if (!v.characters.length) {
+      const est = await api('GET', `${base}/estimate/characters`);
+      const btn = h('button', { class: 'btn btn-primary', onclick: () => run(btn, consent => api('POST', `${base}/characters/generate`, { consent })) },
+        `產生角色（預估 ${money(est.estimate)}）`);
+      root.replaceChildren(h('main', { class: 'main stack', style: 'gap:20px' }, h('h1', {}, '角色設計'), staleNotice(v, 4),
+        h('div', { class: 'card stack' }, h('p', {}, `依分鏡腳本找出需要的角色：系列已鎖定的角色直接沿用，新角色由 AI 產生一張四格定妝板（需新產生 ${est.newCharacters} 位）。`), h('div', {}, btn))),
         actionBar(h('a', { class: 'btn', href: `#/videos/${v.id}/4` }, '上一步'), h('span')));
       return;
     }
-    const p = { total: v.script.shots.length, done: 0, running: 0, failed: 0 };
-    for (const s of v.script.shots) { const st = v.frames[s.id]?.status; if (st === 'done') p.done++; if (st === 'running' || st === 'queued') p.running++; if (st === 'failed') p.failed++; }
-    const missing = v.script.shots.filter(s => !v.frames[s.id]?.selected).length;
-    const retryAll = p.failed || (missing && !p.running)
-      ? h('button', { class: 'btn btn-sm', onclick: e => run(e.target, consent => api('POST', `${base}/frames/generate`, { consent })) }, '產生缺少的格子') : null;
-    const confirmBtn = h('button', { class: 'btn btn-primary', disabled: missing > 0, onclick: async () => {
+    const c = v.characters.find(x => x.id === current) || v.characters[0];
+    const confirmBtn = h('button', { class: 'btn btn-primary', onclick: async () => {
       try { await api('POST', `${base}/steps/5/confirm`); location.hash = `#/videos/${v.id}/6`; } catch (err) { toast(err.message); }
-    } }, '確認精緻圖，生成影片');
+    } }, '確認角色，產生精緻圖');
+    const summary = v.characters.map(x => `${x.name} v${x.selectedVersion}`).join('、');
     root.replaceChildren(
-      h('main', { class: 'main stack', style: 'gap:20px' },
-        h('div', { class: 'page-head', style: 'margin:0' },
-          h('div', {}, h('h1', {}, '精緻圖模擬'), h('p', {}, '以你的照片為場景、定妝板為角色，逐格產生；完成一格就填上一格。')),
-          h('div', { class: 'row' }, h('span', { 'data-testid': 'progress' }, `${p.done}／${p.total} 格完成${p.running ? `・${p.running} 格生成中` : ''}${p.failed ? `・${p.failed} 格失敗` : ''}`), retryAll)),
-        staleNotice(v, 5),
-        strip(),
-        h('div', { class: 'layout' }, h('div', { class: 'grow' }, detail()), h('div', { class: 'side' }, qualityCard()))),
+      h('main', { class: 'main' },
+        h('div', { class: 'page-head' }, h('div', {}, h('h1', {}, '角色設計'),
+          h('p', {}, `腳本需要 ${v.characters.length} 位角色：系列角色直接沿用，新角色由 AI 產生四格定妝板。`))),
+        staleNotice(v, 4),
+        h('div', { class: 'layout' },
+          h('div', { class: 'side stack', style: 'flex:0 1 280px;gap:12px' }, v.characters.map(listItem)),
+          h('div', { class: 'grow' }, detail(c)))),
       actionBar(h('a', { class: 'btn', href: `#/videos/${v.id}/4` }, '上一步'),
-        h('div', { class: 'row' }, h('span', { class: 'small muted' }, missing ? `還有 ${missing} 格沒有精緻圖` : `${p.total} 格都已選定精緻圖`), confirmBtn)));
+        h('div', { class: 'row' }, h('span', { class: 'small muted' }, `確認後鎖定為 ${summary}，精緻圖與影片都使用這個版本`), confirmBtn)));
   }
 
   await draw();
-  poll();
   return root;
 }

@@ -1,17 +1,19 @@
-// 步驟確認的狀態機。步驟 1（系列設定）建立影片時即視為已確認；步驟 2～6 每支影片各走一次。
+// 步驟確認的狀態機。步驟 1（系列設定）建立影片時即視為已確認；步驟 2～7 每支影片各走一次。
 // 狀態：pending（未確認）、confirmed（已確認）、stale（前面的步驟被修改，需重新確認）。
 const { HttpError } = require('../http');
 
-const STEPS = [2, 3, 4, 5, 6];
-const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '故事腳本', 4: '角色設計', 5: '精緻圖', 6: '影片生成' };
+const STEPS = [2, 3, 4, 5, 6, 7];
+const LAST = STEPS[STEPS.length - 1];
+const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '寺廟背景板', 4: '故事腳本', 5: '角色設計', 6: '精緻圖', 7: '影片生成' };
 
 // 每一步確認時保存的內容（確認紀錄用）。
 const STEP_FIELDS = {
   2: ['templeId', 'temple', 'templeHistory', 'photos', 'story'],
-  3: ['script'],
-  4: ['characters'],
-  5: ['frames'],
-  6: ['clips', 'final', 'audio'],
+  3: ['templeBoard'],
+  4: ['script'],
+  5: ['characters'],
+  6: ['frames'],
+  7: ['clips', 'final', 'audio'],
 };
 
 const text = v => (typeof v === 'string' ? v.trim() : '');
@@ -23,7 +25,8 @@ const CONDITIONS = {
     !(v.photos || []).some(p => p.status === 'ready') && '至少要有 1 張照片完成去識別',
     !text(v.story?.adopted) && '故事不能空白',
   ].filter(Boolean),
-  3: v => {
+  3: v => (v.templeBoard?.versions?.some(x => x.version === v.templeBoard.selectedVersion) ? [] : ['尚未產生寺廟背景板']),
+  4: v => {
     const shots = v.script?.shots || [];
     if (!shots.length) return ['尚未產生分鏡腳本'];
     const unmet = [];
@@ -33,17 +36,17 @@ const CONDITIONS = {
     if (Math.abs(total - v.series.duration) > 0.5) unmet.push(`分鏡總長度 ${total} 秒，與系列設定 ${v.series.duration} 秒不符`);
     return unmet;
   },
-  4: v => {
+  5: v => {
     const chars = v.characters || [];
     if (!chars.length) return ['尚未產生角色'];
     return chars.filter(c => !c.versions?.some(x => x.version === c.selectedVersion)).map(c => `角色「${c.name}」尚未選定版本`);
   },
-  5: v => {
+  6: v => {
     const shots = v.script?.shots || [];
     const missing = shots.filter(s => !v.frames?.[s.id]?.selected).map(s => s.index);
     return missing.length ? [`第 ${missing.join('、')} 格尚未選定精緻圖`] : [];
   },
-  6: v => {
+  7: v => {
     const shots = v.script?.shots || [];
     const missing = shots.filter(s => !v.clips?.[s.id]?.selected).map(s => s.index);
     const unmet = missing.length ? [`第 ${missing.join('、')} 格尚未產生分鏡影片`] : [];
@@ -61,7 +64,7 @@ function initialSteps() {
 
 function refresh(video) {
   const next = STEPS.find(s => video.steps[s].status !== 'confirmed');
-  video.currentStep = next || 6;
+  video.currentStep = next || LAST;
   video.status = next ? 'in_progress' : 'done';
 }
 
@@ -99,4 +102,18 @@ function confirm(video, step, conditions = CONDITIONS) {
   return { step, rev: st.rev, content };
 }
 
-module.exports = { STEPS, STEP_NAMES, STEP_FIELDS, CONDITIONS, initialSteps, touch, confirm, canEnter, assertCanEnter, refresh };
+// 舊資料（6 個步驟）升級為 7 個步驟：原步驟 3～6 往後移一步，插入寺廟背景板（步驟 3）。
+// 已確認步驟 2 的舊影片，步驟 3 視為已確認（略過），不擋住已在進行的製作。回傳是否有變更。
+function migrate(video) {
+  if (!video.steps || video.steps[LAST]) return false;
+  for (let s = LAST; s >= 4; s -= 1) video.steps[s] = video.steps[s - 1];
+  const step2Done = video.steps[2]?.status === 'confirmed';
+  video.steps[3] = step2Done
+    ? { status: 'confirmed', rev: 1, confirmedRev: 1, skipped: true }
+    : { status: 'pending', rev: 0, confirmedRev: null };
+  if (video.templeBoard === undefined) video.templeBoard = null;
+  refresh(video);
+  return true;
+}
+
+module.exports = { STEPS, LAST, migrate, STEP_NAMES, STEP_FIELDS, CONDITIONS, initialSteps, touch, confirm, canEnter, assertCanEnter, refresh };

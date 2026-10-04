@@ -1,8 +1,8 @@
 {
   "id": "story-script",
-  "step": 3,
+  "step": 4,
   "name": "故事與分鏡腳本",
-  "description": "步驟 3：以廣告編劇角度產生廣告腳本並拆成分鏡。",
+  "description": "步驟 4：以廣告編劇角度產生廣告腳本並拆成分鏡。",
   "version": 3,
   "updatedAt": "2026-10-03T16:24:19.779Z",
   "target": {

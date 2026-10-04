@@ -65,7 +65,7 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
     const upload = (v.musicUploads || []).find(u => u.id === id);
     if (upload) return media(upload.file);
     const { result } = await generations.runDirect({
-      videoId: v.id, step: 6, kind: 'music', input: { track: id, seconds }, consent: true,
+      videoId: v.id, step: 7, kind: 'music', input: { track: id, seconds }, consent: true,
       call: provider => provider.music.track(id, seconds),
     });
     return result.file;
@@ -110,7 +110,7 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
     const starts = new Map(timeline(shots).map(t => [t.shot.id, t.start]));
     for (const [j, s] of ttsShots(v).entries()) {
       const { result } = await generations.runDirect({
-        videoId: id, step: 6, kind: 'voice', input: { text: s.line, speaker: s.speaker }, units: { count: 1 }, consent: true, meta: { shotId: s.id },
+        videoId: id, step: 7, kind: 'voice', input: { text: s.line, speaker: s.speaker }, units: { count: 1 }, consent: true, meta: { shotId: s.id },
         call: provider => provider.voice.synthesize({ text: s.line, speaker: s.speaker }),
       });
       const ti = addInput('-i', result.file);
@@ -144,7 +144,7 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
     },
 
     setAudio(id, patch) {
-      return videos.mutate(id, 6, v => {
+      return videos.mutate(id, 7, v => {
         const a = audioOf(v);
         if (patch.voiceMode !== undefined) {
           if (!['native', 'tts'].includes(patch.voiceMode)) throw unprocessable('invalid_voice_mode', '台詞語音必須是 native 或 tts');
@@ -168,7 +168,7 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
       fs.mkdirSync(path.dirname(media(rel)), { recursive: true });
       fs.writeFileSync(media(rel), buffer);
       const track = { id: trackId, name: filename || `上傳的音樂${ext}`, file: rel };
-      const video = videos.mutate(id, 6, v => {
+      const video = videos.mutate(id, 7, v => {
         (v.musicUploads ||= []).push(track);
         v.audio = { ...audioOf(v), music: trackId };
         if (v.final) v.final.stale = true;
@@ -178,28 +178,28 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
 
     compose(id, { consent = false } = {}) {
       const v = videos.get(id);
-      wf.assertCanEnter(v, 6);
+      wf.assertCanEnter(v, 7);
       const missing = v.script.shots.filter(s => !v.clips[s.id]?.selected).map(s => s.index);
       if (missing.length) throw unprocessable('clips_missing', `第 ${missing.join('、')} 格還沒有分鏡影片`);
       if (v.final?.status === 'composing') throw new HttpError(409, 'composing', '成品正在合成中');
       ledger.check(id, this.estimate(id).estimate, consent);
-      const saved = videos.mutate(id, 6, video => {
+      const saved = videos.mutate(id, 7, video => {
         if (video.final?.file) (video.finals ||= []).push(video.final);
         video.final = { status: 'composing', stale: false };
       });
       jobs.start(async () => {
         try {
           const result = await render(id);
-          videos.mutate(id, 6, video => { video.final = { ...result, status: 'done', stale: false, quality: {}, composedAt: new Date().toISOString() }; }, { touch: false });
+          videos.mutate(id, 7, video => { video.final = { ...result, status: 'done', stale: false, quality: {}, composedAt: new Date().toISOString() }; }, { touch: false });
         } catch (err) {
-          videos.mutate(id, 6, video => { video.final = { status: 'failed', error: err.message.slice(0, 500), stale: false }; }, { touch: false });
+          videos.mutate(id, 7, video => { video.final = { status: 'failed', error: err.message.slice(0, 500), stale: false }; }, { touch: false });
         }
       });
       return saved;
     },
 
     setQuality(id, quality = {}) {
-      return videos.mutate(id, 6, v => {
+      return videos.mutate(id, 7, v => {
         if (!v.final?.file) throw unprocessable('no_final', '還沒有成品');
         v.final.quality ||= {};
         for (const k of ['face', 'lipsync', 'subtitles', 'duration']) if (quality[k] !== undefined) v.final.quality[k] = Boolean(quality[k]);
@@ -208,7 +208,7 @@ function createComposeService({ videos, generations, ledger, store, config, jobs
 
     downloadable(id) {
       const v = videos.get(id);
-      if (v.steps[6].status !== 'confirmed' || !v.final?.file) throw new HttpError(409, 'not_confirmed', '請先確認成品，才能下載');
+      if (v.steps[wf.LAST].status !== 'confirmed' || !v.final?.file) throw new HttpError(409, 'not_confirmed', '請先確認成品，才能下載');
       return { file: media(v.final.file), name: `${(v.title || '廟埕影室成品').replace(/[\\/:*?"<>|]/g, '_')}.mp4` };
     },
   };

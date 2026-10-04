@@ -44,21 +44,25 @@ async function videoAtStep(request, step, seriesOverrides = {}) {
     await must(await request.post(`${base}/steps/2/confirm`), '確認步驟 2');
   }
   if (step >= 4) {
-    await must(await request.post(`${base}/script/generate`, { data: {} }), '產生腳本');
+    await must(await request.post(`${base}/temple-board/generate`, { data: {} }), '產生寺廟背景板');
     await must(await request.post(`${base}/steps/3/confirm`), '確認步驟 3');
   }
   if (step >= 5) {
-    await must(await request.post(`${base}/characters/generate`, { data: {} }), '產生角色');
+    await must(await request.post(`${base}/script/generate`, { data: {} }), '產生腳本');
     await must(await request.post(`${base}/steps/4/confirm`), '確認步驟 4');
   }
   if (step >= 6) {
+    await must(await request.post(`${base}/characters/generate`, { data: {} }), '產生角色');
+    await must(await request.post(`${base}/steps/5/confirm`), '確認步驟 5');
+  }
+  if (step >= 7) {
     await must(await request.post(`${base}/frames/generate`, { data: {} }), '產生精緻圖');
     for (let i = 0; i < 100; i++) {
       const v = (await (await request.get(base)).json()).video;
       if (v.script.shots.every(s => v.frames[s.id]?.selected)) break;
       await new Promise(r => setTimeout(r, 200));
     }
-    await must(await request.post(`${base}/steps/5/confirm`), '確認步驟 5');
+    await must(await request.post(`${base}/steps/6/confirm`), '確認步驟 6');
   }
   return { series, video, base };
 }

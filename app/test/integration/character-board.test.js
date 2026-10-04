@@ -11,7 +11,7 @@ test('四格定妝板', async t => {
   const { ai, config, store } = s.app.ctx;
 
   await t.test('場景：角色定妝板是一張四格圖', async () => {
-    const { base, videoId } = await videoAtStep(s, 4, { characters: [] });
+    const { base, videoId } = await videoAtStep(s, 5, { characters: [] });
     const before = ai.calls.filter(c => c.kind === 'image').length;
     const r = await s.post(`${base}/characters/generate`, {});
     const c = r.data.video.characters[0];
@@ -26,13 +26,13 @@ test('四格定妝板', async t => {
   });
 
   await t.test('場景：產生定妝板的預估費用以一張圖計算', async () => {
-    const { base, series } = await videoAtStep(s, 4, { characters: [] });
+    const { base, series } = await videoAtStep(s, 5, { characters: [] });
     assert.equal((await s.get(`${base}/estimate/characters`)).data.estimate, PRICES.image.perImage);
     assert.equal((await s.get(`/api/series/${series.id}/estimate/characters`)).data.sheet, PRICES.image.perImage);
   });
 
   await t.test('場景：精緻圖以鎖定版本的定妝板作為角色參考', async () => {
-    const { base, videoId } = await videoAtStep(s, 5);
+    const { base, videoId } = await videoAtStep(s, 6);
     const before = ai.calls.length;
     await s.post(`${base}/frames/generate`, {});
     await s.app.ctx.jobs.idle();
@@ -44,7 +44,7 @@ test('四格定妝板', async t => {
   });
 
   await t.test('場景：舊版分開產生的定裝圖仍可作為參考', async () => {
-    const { base, videoId } = await videoAtStep(s, 5);
+    const { base, videoId } = await videoAtStep(s, 6);
     // 把鎖定版本改成舊格式（front/side/back/costume 四張分開的圖）。
     const legacy = store.update('videos', videoId, v => {
       const ver = v.characters[0].versions.find(x => x.version === v.characters[0].lockedVersion);

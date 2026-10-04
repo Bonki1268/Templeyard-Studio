@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const wf = require('../../src/videos/workflow');
 
 const always = () => [];
-const conditions = { 2: always, 3: always, 4: always, 5: always, 6: always };
+const conditions = { 2: always, 3: always, 4: always, 5: always, 6: always, 7: always };
 
 function video() {
   return { id: 'v', steps: wf.initialSteps(), currentStep: 2, status: 'in_progress' };
@@ -37,12 +37,12 @@ test('場景：回頭修改前面的步驟時後續已確認的步驟標示需�
   assert.equal(v.steps[3].status, 'confirmed');
 });
 
-test('確認全部 6 步後影片完成', () => {
+test('確認全部 7 步後影片完成', () => {
   const v = video();
-  for (const s of [2, 3, 4, 5, 6]) wf.confirm(v, s, conditions);
+  for (const s of [2, 3, 4, 5, 6, 7]) wf.confirm(v, s, conditions);
   assert.equal(v.status, 'done');
-  assert.equal(v.currentStep, 6);
-  wf.touch(v, 6);
+  assert.equal(v.currentStep, 7);
+  wf.touch(v, 7);
   assert.equal(v.status, 'in_progress');
 });
 

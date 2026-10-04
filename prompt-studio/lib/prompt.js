@@ -17,7 +17,7 @@ function validate(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return ['內容必須是 JSON 物件'];
   if (!ID_PATTERN.test(p.id || '')) errors.push('id 只能用小寫英數與連字號，2～64 字');
   if (!p.name || typeof p.name !== 'string') errors.push('name（名稱）必填');
-  if (!Number.isInteger(p.step) || p.step < 1 || p.step > 6) errors.push('step 必須是 1～6 的整數');
+  if (!Number.isInteger(p.step) || p.step < 1 || p.step > 7) errors.push('step 必須是 1～7 的整數');
   if (!p.target || !TARGET_KINDS.includes(p.target.kind)) errors.push(`target.kind 必須是 ${TARGET_KINDS.join('、')} 其中之一`);
   if (typeof p.system !== 'string') errors.push('system 必須是文字');
   if (!p.template || typeof p.template !== 'string') errors.push('template（指令內容）必填');

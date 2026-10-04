@@ -1,8 +1,8 @@
 {
   "id": "storyboard-image",
-  "step": 3,
+  "step": 4,
   "name": "分鏡圖",
-  "description": "步驟 3：為單一分鏡產生草圖式分鏡圖。",
+  "description": "步驟 4：為單一分鏡產生草圖式分鏡圖。",
   "version": 2,
   "updatedAt": "2026-10-03T16:23:45.626Z",
   "target": {

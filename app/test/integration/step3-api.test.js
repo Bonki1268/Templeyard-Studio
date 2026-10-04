@@ -1,101 +1,125 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { startApp } = require('../helpers');
-const { videoAtStep, STORY } = require('./scenario');
+const path = require('node:path');
+const { startApp, tempDir } = require('../helpers');
+const { videoAtStep } = require('./scenario');
 const { PRICES } = require('../../src/cost/prices');
 
-// 短期網址的到期時間會隨時間改變，比較內容時去掉 url。
-const noUrls = v => JSON.parse(JSON.stringify(v, (k, x) => (k === 'url' ? undefined : x)));
-
-test('步驟 3 API', async t => {
+test('步驟 3 API：寺廟背景板', async t => {
   const s = await startApp();
   t.after(() => s.close());
-  const { videoId, base } = await videoAtStep(s, 3);
-  let script;
+  const { ai, config } = s.app.ctx;
+  const { base, videoId } = await videoAtStep(s, 3);
+  let first;
 
-  await t.test('場景：產生腳本前先看到預估費用', async () => {
-    const r = await s.get(`${base}/estimate/script`);
-    assert.equal(r.status, 200);
-    assert.equal(r.data.shotCount, 10);
-    assert.equal(r.data.estimate, +(PRICES.text.perCall + 10 * PRICES.image.perImage).toFixed(4));
-  });
-
-  await t.test('場景：以廣告編劇角度產生腳本並拆成分鏡', async () => {
+  await t.test('場景：確認新增影片後進入寺廟背景板步驟', async () => {
+    const v = (await s.get(base)).data.video;
+    assert.equal(v.currentStep, 3);
+    assert.equal(v.templeBoard, null);
     const r = await s.post(`${base}/script/generate`, {});
-    assert.equal(r.status, 200);
-    script = r.data.video.script;
-    assert.ok(script.adCopy);
-    assert.equal(script.version, 1);
-    assert.equal(script.shots.length, 10);
-    assert.equal(script.shots.reduce((sum, x) => sum + x.seconds, 0), 30);
-    for (const shot of script.shots) {
-      assert.ok(shot.id);
-      assert.ok(shot.storyboard.url, `第 ${shot.index} 格缺分鏡圖`);
-      for (const k of ['scene', 'shotSize', 'composition', 'camera', 'transition', 'intent', 'narrativeRole', 'action', 'line', 'speaker', 'subtitle']) assert.ok(shot[k], `第 ${shot.index} 格缺 ${k}`);
-    }
-    assert.equal(r.data.video.title, script.title);
-    const gen = (await s.get(`/api/generations?videoId=${videoId}`)).data.generations.find(g => g.promptId === 'story-script');
-    assert.equal(gen.input.story, STORY);
-    assert.equal(gen.input.temple.name, '鄞山寺');
-    assert.equal(gen.input.series.duration, 30);
-    assert.equal(gen.input.series.direction, '在地歷史故事');
-    assert.match(gen.input.characters, /導覽員小晴/);
-    assert.match(gen.input.photos, /廟宇正面/);
-    const images = (await s.get(`/api/generations?videoId=${videoId}`)).data.generations.filter(g => g.promptId === 'storyboard-image');
-    assert.equal(images.length, 10);
+    assert.equal(r.status, 409);
+    assert.equal(r.data.error.code, 'previous_step_not_confirmed');
   });
 
-  await t.test('場景：手動修改單格的分鏡說明', async () => {
-    const shot = script.shots[1];
-    const r = await s.request('PATCH', `${base}/script/shots/${shot.id}`, { shotSize: '特寫', seconds: 2.5, line: '這座廟，藏著老一輩才知道的故事。' });
-    assert.equal(r.status, 200);
-    const next = r.data.video.script;
-    assert.equal(next.shots[1].shotSize, '特寫');
-    assert.equal(next.shots[1].seconds, 2.5);
-    assert.equal(next.shots[1].line, '這座廟，藏著老一輩才知道的故事。');
-    assert.deepEqual(noUrls(next.shots[0]), noUrls(script.shots[0]));
-    const bad = await s.request('PATCH', `${base}/script/shots/${shot.id}`, { seconds: -1 });
-    assert.equal(bad.status, 422);
-    await s.request('PATCH', `${base}/script/shots/${shot.id}`, { seconds: shot.seconds });
-    script = (await s.get(base)).data.video.script;
+  await t.test('場景：產生寺廟背景板前先看到預估費用', async () => {
+    const r = await s.get(`${base}/estimate/temple-board`);
+    assert.equal(r.data.estimate, PRICES.image.perImage);
   });
 
-  await t.test('場景：單格重生分鏡說明與分鏡圖', async () => {
-    const target = script.shots[2];
-    const r = await s.post(`${base}/script/shots/${target.id}/regenerate`, { instruction: '改成黃昏的屋脊特寫' });
-    assert.equal(r.status, 200);
-    const next = r.data.video.script;
-    assert.notEqual(next.shots[2].storyboard.file, target.storyboard.file);
-    assert.equal(next.shots[2].id, target.id);
-    assert.equal(next.shots[2].index, 3);
-    assert.equal(next.shots[2].seconds, target.seconds, '秒數維持不變，總長度不受影響');
-    for (const i of [0, 1, 3, 4]) assert.deepEqual(noUrls(next.shots[i]), noUrls(script.shots[i]));
-    const gens = (await s.get(`/api/generations?videoId=${videoId}`)).data.generations;
-    assert.ok(gens.some(g => g.instruction === '改成黃昏的屋脊特寫' && g.shotId === target.id));
-    script = next;
-  });
-
-  await t.test('場景：依指令重新產生整份腳本並保留舊版', async () => {
-    const r = await s.post(`${base}/script/generate`, { instruction: '開頭節奏再快一點' });
-    const next = r.data.video.script;
-    assert.equal(next.version, 2);
-    assert.equal(next.instruction, '開頭節奏再快一點');
-    assert.equal(r.data.video.scriptVersions.length, 1);
-    assert.equal(r.data.video.scriptVersions[0].version, 1);
-  });
-
-  await t.test('場景：分鏡總長度不符系列秒數時不能確認', async () => {
-    const shot = (await s.get(base)).data.video.script.shots[0];
-    await s.request('PATCH', `${base}/script/shots/${shot.id}`, { seconds: shot.seconds + 2 });
+  await t.test('場景：沒有背景板時不能確認步驟 3', async () => {
     const r = await s.post(`${base}/steps/3/confirm`);
     assert.equal(r.status, 422);
-    assert.ok(r.data.error.unmet.some(u => /總長度/.test(u)));
-    await s.request('PATCH', `${base}/script/shots/${shot.id}`, { seconds: shot.seconds });
+    assert.ok(r.data.error.unmet.includes('尚未產生寺廟背景板'));
   });
 
-  await t.test('場景：每格都有說明且總長度符合時可以確認', async () => {
-    const r = await s.post(`${base}/steps/3/confirm`);
+  await t.test('場景：以去識別後的照片產生四格寺廟背景板', async () => {
+    const before = ai.calls.length;
+    const r = await s.post(`${base}/temple-board/generate`, {});
     assert.equal(r.status, 200);
-    assert.equal(r.data.video.currentStep, 4);
+    const board = r.data.video.templeBoard;
+    assert.equal(board.versions.length, 1);
+    assert.equal(board.selectedVersion, 1);
+    assert.ok(board.versions[0].image.url);
+    first = board.versions[0];
+    const call = ai.calls.slice(before).find(c => c.kind === 'image');
+    const photos = r.data.video.photos.filter(p => p.status === 'ready');
+    assert.equal(call.refs.length, photos.length);
+    for (const ref of call.refs) {
+      assert.ok(ref.startsWith(config.mediaDir + path.sep), `參考圖必須在 media 資料夾：${ref}`);
+      assert.ok(!ref.includes(`${path.sep}private${path.sep}`));
+    }
+    const prompt = [call.request.system, call.request.messages[0].content].join('\n');
+    for (const word of ['2×2', '正面全景', '斜角／側面', '廟埕與周邊環境', '特色細節', '沒有任何人']) assert.ok(prompt.includes(word), `指令缺少「${word}」`);
+    const gens = (await s.get(`/api/generations?videoId=${videoId}`)).data.generations.filter(g => g.promptId === 'temple-board');
+    assert.equal(gens.length, 1);
+    assert.equal(gens[0].step, 3);
+  });
+
+  await t.test('場景：依指令重新產生背景板並保留舊版本', async () => {
+    const r = await s.post(`${base}/temple-board/generate`, { instruction: '天色改成黃昏' });
+    const board = r.data.video.templeBoard;
+    assert.equal(board.versions.length, 2);
+    assert.equal(board.selectedVersion, 2);
+    assert.equal(board.versions[1].instruction, '天色改成黃昏');
+    assert.notEqual(board.versions[1].image.file, first.image.file);
+    const back = await s.request('PATCH', `${base}/temple-board`, { selectedVersion: 1 });
+    assert.equal(back.data.video.templeBoard.selectedVersion, 1);
+    assert.equal((await s.request('PATCH', `${base}/temple-board`, { selectedVersion: 9 })).status, 422);
+  });
+
+  await t.test('場景：修改步驟 2 後背景板需重新確認', async () => {
+    assert.equal((await s.post(`${base}/steps/3/confirm`)).status, 200);
+    await s.put(`${base}/story`, { text: '改寫後的故事：小晴帶大家認識這座廟。' });
+    const v = (await s.get(base)).data.video;
+    assert.equal(v.steps[3].status, 'stale');
+    assert.equal(v.currentStep, 2);
+  });
+});
+
+test('精緻圖使用寺廟背景板', async t => {
+  const s = await startApp();
+  t.after(() => s.close());
+  const { ai, config, store } = s.app.ctx;
+
+  await t.test('場景：精緻圖以選用的寺廟背景板作為場景參考', async () => {
+    const { base, videoId } = await videoAtStep(s, 6);
+    const v = store.get('videos', videoId);
+    const board = path.join(config.mediaDir, v.templeBoard.versions.find(x => x.version === v.templeBoard.selectedVersion).image.file);
+    const before = ai.calls.length;
+    await s.post(`${base}/frames/generate`, {});
+    await s.app.ctx.jobs.idle();
+    const calls = ai.calls.slice(before).filter(c => c.request?.promptId === 'refined-frame');
+    assert.ok(calls.length > 0);
+    assert.ok(calls.every(c => c.refs.includes(board)), '每格都要帶入寺廟背景板');
+  });
+});
+
+test('舊資料升級', async t => {
+  await t.test('場景：既有影片升級為 7 個步驟', async () => {
+    const dataDir = tempDir();
+    const s1 = await startApp({ dataDir });
+    const { videoId } = await videoAtStep(s1, 5);
+    // 改寫成舊版 6 個步驟的資料：步驟 2、3（舊編號的故事腳本）已確認，停在 4（角色設計）。
+    s1.app.ctx.store.update('videos', videoId, v => {
+      const st = n => ({ status: 'confirmed', rev: 1, confirmedRev: 1, n });
+      v.steps = { 1: st(1), 2: st(2), 3: st(3), 4: { status: 'pending', rev: 0, confirmedRev: null }, 5: { status: 'pending', rev: 0, confirmedRev: null }, 6: { status: 'pending', rev: 0, confirmedRev: null } };
+      v.currentStep = 4;
+      delete v.templeBoard;
+    });
+    await s1.close();
+
+    const s2 = await startApp({ dataDir });
+    try {
+      const v = (await s2.get(`/api/videos/${videoId}`)).data.video;
+      assert.deepEqual(Object.keys(v.steps).map(Number), [1, 2, 3, 4, 5, 6, 7]);
+      assert.equal(v.steps[3].status, 'confirmed');
+      assert.equal(v.steps[3].skipped, true);
+      assert.equal(v.steps[4].n, 3, '舊的步驟 3（故事腳本）移到步驟 4');
+      assert.equal(v.steps[4].status, 'confirmed');
+      assert.equal(v.steps[5].status, 'pending');
+      assert.equal(v.steps[7].status, 'pending');
+      assert.equal(v.currentStep, 5, '仍停在角色設計（新編號 5）');
+      assert.equal(v.templeBoard, null);
+    } finally { await s2.close(); }
   });
 });

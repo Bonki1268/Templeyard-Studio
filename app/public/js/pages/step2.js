@@ -162,7 +162,7 @@ export async function render({ video, refreshCost }) {
       await api('POST', `${base}/steps/2/confirm`);
       location.hash = `#/videos/${v.id}/3`;
     } catch (err) { toast(err.message); confirmBtn.disabled = false; }
-  } }, '確認，產生故事腳本');
+  } }, '確認，產生寺廟背景板');
   function renderConditions() {
     const ready = v.photos.filter(p => p.status === 'ready').length;
     const items = [

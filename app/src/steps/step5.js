@@ -1,138 +1,154 @@
-// 步驟 5：依分鏡圖、角色鎖定版本與去識別照片，為每格產生精緻圖。
-// 生成在背景逐格進行（分鏡膠捲逐格顯示進度）；可單張重生、選定候選版本、記錄品質檢查。
+// 步驟 5：依腳本需要的角色產生四格定妝板；系列已鎖定的角色直接沿用。
+// 確認時鎖定選用的版本；系列角色或勾選「加入系列角色」者寫回系列，之後的影片沿用。
 const path = require('node:path');
 const { unprocessable, notFound } = require('../http');
 const { seriesVars } = require('../videos/vars');
 const { estimateCost } = require('../cost/prices');
 const wf = require('../videos/workflow');
-const { referenceImage } = require('./step4');
 const { text } = require('../util');
 
-const QUALITY_KEYS = ['face', 'temple', 'hands', 'people'];
+// 定妝板是一張 2×2 的四格圖：① 正面・不要頭 ② 側面 ③ 背面 ④ 頭部特寫。
+const BOARD = 'board';
 
-function createStep5Service({ videos, generations, ledger, store, config, jobs }) {
-  const media = rel => path.join(config.mediaDir, rel);
+// 角色版本的參考圖：四格定妝板；舊版本（front/side/back/costume 分開產生）則用定裝圖。
+const referenceImage = images => images?.[BOARD] || images?.costume || null;
 
-  function lockedCharacters(v, names) {
-    return v.characters
-      .filter(c => !names.length || names.includes(c.name))
-      .map(c => ({ c, version: c.versions.find(x => x.version === (c.lockedVersion ?? c.selectedVersion)) }))
-      .filter(x => x.version);
-  }
-
-  // 只用去識別後的照片（media 資料夾）、鎖定版本的定妝板與分鏡圖作為參考圖。
-  function refsFor(v, shot) {
-    const photos = v.photos.filter(p => p.status === 'ready');
-    const photo = shot.photoIndex ? photos[shot.photoIndex - 1] : null;
-    const chars = lockedCharacters(v, [...(shot.characters || []), shot.speaker].filter(Boolean));
-    return {
-      photo,
-      chars,
-      refs: [photo && media(photo.file), ...chars.map(x => referenceImage(x.version.images)).filter(Boolean).map(img => media(img.file)), shot.storyboard && media(shot.storyboard.file)].filter(Boolean),
-    };
-  }
-
-  async function generateOne(id, shotId, { instruction = '' } = {}) {
-    const v = videos.get(id);
-    const shot = v.script.shots.find(s => s.id === shotId);
-    const { photo, chars, refs } = refsFor(v, shot);
-    videos.mutate(id, 5, video => { video.frames[shotId].status = 'running'; }, { touch: false });
-    const variables = {
-      shot,
-      character: { reference: chars.length ? chars.map(x => `${x.c.name}（定裝 v${x.version.version}）`).join('、') : '本格無角色' },
-      photo: { description: photo ? (photo.description || photo.filename) : '依分鏡圖的場景' },
-      series: { style: seriesVars(v).style }, instruction: text(instruction),
-    };
-    try {
-      const { generation, result } = await generations.run({
-        videoId: id, step: 5, promptId: 'refined-frame', variables, instruction: text(instruction), consent: true,
-        units: { count: 1 }, meta: { shotId },
-        call: (ai, request) => ai.image.generate({ request, refs }),
-      });
-      videos.mutate(id, 5, video => {
-        const f = video.frames[shotId];
-        const candidate = { id: store.newId(), file: path.relative(config.mediaDir, result.file), instruction: text(instruction), generationId: generation.id };
-        f.candidates.push(candidate);
-        f.selected = candidate.id;
-        f.status = 'done';
-        f.error = null;
-      });
-    } catch (err) {
-      videos.mutate(id, 5, video => { Object.assign(video.frames[shotId], { status: 'failed', error: err.message }); }, { touch: false });
+function neededCharacters(script) {
+  const byName = new Map();
+  for (const c of script.characters || []) byName.set(c.name, c.description || '');
+  for (const shot of script.shots) {
+    for (const name of [...(shot.characters || []), shot.speaker]) {
+      if (name && name !== '旁白' && !byName.has(name)) byName.set(name, '');
     }
   }
+  return [...byName].map(([name, description]) => ({ name, description }));
+}
 
-  function ensureFrame(v, shotId) {
-    v.frames[shotId] ||= { candidates: [], selected: null, status: 'idle', quality: {}, error: null };
-    return v.frames[shotId];
+// 產生一張四格定妝板，回傳 { board }。
+// record 是生成紀錄與記帳的歸屬：影片（videoId）或系列（account、meta.seriesId）。
+async function generateSheet({ generations, config }, { character, style, instruction = '', reference = '', consent, step, record }) {
+  const variables = {
+    character: { name: character.name, description: character.description || `${character.name}（依腳本）`, reference },
+    series: { style }, instruction: text(instruction),
+  };
+  const { generation, result } = await generations.run({
+    ...record, step, promptId: 'character-sheet', variables, instruction: text(instruction), consent,
+    units: { count: 1 }, meta: { ...record.meta, characterId: character.id, view: BOARD },
+    call: (ai, request) => ai.image.generate({ request, variant: BOARD }),
+  });
+  return { [BOARD]: { file: path.relative(config.mediaDir, result.file), generationId: generation.id } };
+}
+
+function createStep5Service({ videos, generations, ledger, store, config }) {
+  const lockedOf = sc => sc.versions?.find(x => x.version === sc.lockedVersion);
+
+  function plan(v) {
+    if (!v.script) throw unprocessable('no_script', '還沒有腳本');
+    return neededCharacters(v.script).map(need => {
+      const existing = v.characters.find(c => c.name === need.name);
+      const sc = v.series.characters.find(c => c.name === need.name);
+      return { need, existing, sc, generate: !existing && !(sc && lockedOf(sc)) };
+    });
   }
 
-  function pending(v) {
-    return v.script.shots.filter(s => !v.frames[s.id]?.selected);
-  }
+  const sheet = (v, character, options) => generateSheet({ generations, config }, {
+    ...options, character, style: seriesVars(v).style, step: 5, record: { videoId: v.id },
+  });
 
-  function progress(v) {
-    const list = v.script.shots.map(s => v.frames[s.id]?.status || 'idle');
-    const count = st => list.filter(x => x === st).length;
-    return { total: list.length, done: count('done'), running: count('running'), queued: count('queued'), failed: count('failed') };
+  function findCharacter(v, cid) {
+    const c = v.characters.find(x => x.id === cid);
+    if (!c) throw notFound('找不到角色');
+    return c;
   }
 
   return {
-    progress,
     estimate(id) {
-      const v = videos.get(id);
-      const count = pending(v).length || v.script.shots.length;
-      return { action: 'frames', count, estimate: estimateCost('image', { count }) };
+      const items = plan(videos.get(id));
+      const newCharacters = items.filter(i => i.generate || (i.sc && !lockedOf(i.sc) && !i.existing)).length;
+      return { action: 'characters', newCharacters, estimate: estimateCost('image', { count: newCharacters }) };
     },
 
-    generate(id, { consent = false } = {}) {
-      const v = videos.get(id);
-      wf.assertCanEnter(v, 5);
-      const targets = pending(v).filter(s => !['queued', 'running'].includes(v.frames[s.id]?.status));
-      ledger.check(id, estimateCost('image', { count: targets.length }), consent);
-      const saved = videos.mutate(id, 5, video => {
-        for (const s of targets) ensureFrame(video, s.id).status = 'queued';
-      }, { touch: false });
-      jobs.start(async () => {
-        for (const s of targets) await generateOne(id, s.id);
-      });
-      return saved;
-    },
-
-    regenerate(id, shotId, { instruction = '', consent = false } = {}) {
+    async generate(id, { consent = false } = {}) {
       const v = videos.get(id);
       wf.assertCanEnter(v, 5);
-      if (!v.script.shots.some(s => s.id === shotId)) throw notFound('找不到分鏡');
-      ledger.check(id, estimateCost('image'), consent);
-      const saved = videos.mutate(id, 5, video => { ensureFrame(video, shotId).status = 'queued'; }, { touch: false });
-      jobs.start(() => generateOne(id, shotId, { instruction }));
-      return saved;
-    },
-
-    update(id, shotId, { selected, quality }) {
-      return videos.mutate(id, 5, v => {
-        const f = v.frames[shotId];
-        if (!f) throw notFound('這一格還沒有精緻圖');
-        if (selected !== undefined) {
-          if (!f.candidates.some(c => c.id === selected)) throw unprocessable('invalid_candidate', '沒有這個候選版本');
-          f.selected = selected;
+      ledger.check(id, this.estimate(id).estimate, consent);
+      const created = [];
+      for (const { need, existing, sc } of plan(v)) {
+        if (existing) continue;
+        if (sc && lockedOf(sc)) {
+          // 系列角色已有鎖定版本：直接沿用，不重新產生。
+          created.push({ id: store.newId(), name: sc.name, description: sc.description, source: 'series', seriesCharacterId: sc.id,
+            reused: true, versions: [structuredClone(lockedOf(sc))], selectedVersion: sc.lockedVersion, lockedVersion: null, addToSeries: false });
+          continue;
         }
-        if (quality) for (const k of QUALITY_KEYS) if (quality[k] !== undefined) f.quality[k] = Boolean(quality[k]);
-      }, { touch: selected !== undefined });
+        const c = { id: store.newId(), name: need.name, description: sc?.description || need.description, source: sc ? 'series' : 'video',
+          seriesCharacterId: sc?.id || null, reused: false, versions: [], selectedVersion: null, lockedVersion: null, addToSeries: false };
+        c.versions.push({ version: 1, images: await sheet(v, c, { consent: true }), instruction: '', description: c.description });
+        c.selectedVersion = 1;
+        created.push(c);
+      }
+      return videos.mutate(id, 5, video => { video.characters.push(...created); });
+    },
+
+    async regenerate(id, cid, { instruction = '', description, consent = false } = {}) {
+      const v = videos.get(id);
+      wf.assertCanEnter(v, 5);
+      const c = { ...findCharacter(v, cid) };
+      if (description !== undefined && text(description)) c.description = text(description);
+      ledger.check(id, estimateCost('image', { count: 1 }), consent);
+      const current = c.versions.find(x => x.version === c.selectedVersion);
+      const images = await sheet(v, c, { instruction, reference: current ? `第 ${current.version} 版定妝板` : '', consent: true });
+      return videos.mutate(id, 5, video => {
+        const target = findCharacter(video, cid);
+        const version = Math.max(0, ...target.versions.map(x => x.version)) + 1;
+        target.description = c.description;
+        target.versions.push({ version, images, instruction: text(instruction), description: c.description });
+        target.selectedVersion = version;
+        target.reused = false;
+      });
+    },
+
+    update(id, cid, patch) {
+      return videos.mutate(id, 5, v => {
+        const c = findCharacter(v, cid);
+        if (patch.description !== undefined) c.description = text(patch.description);
+        if (patch.selectedVersion !== undefined) {
+          if (!c.versions.some(x => x.version === Number(patch.selectedVersion))) throw unprocessable('invalid_version', '沒有這個版本');
+          c.selectedVersion = Number(patch.selectedVersion);
+        }
+        if (patch.addToSeries !== undefined) c.addToSeries = Boolean(patch.addToSeries);
+      });
+    },
+
+    // 確認步驟 5 時：鎖定選用版本。
+    lock(v) {
+      for (const c of v.characters) c.lockedVersion = c.selectedVersion;
+    },
+
+    // 確認後：系列角色（新產生的）與勾選加入系列者，寫回系列。
+    syncSeries(v) {
+      const targets = v.characters.filter(c => (c.source === 'series' && !c.reused) || c.addToSeries);
+      if (!targets.length) return;
+      store.update('series', v.seriesId, s => {
+        for (const c of targets) {
+          const locked = structuredClone(c.versions.find(x => x.version === c.lockedVersion));
+          let sc = s.characters.find(x => x.id === c.seriesCharacterId) || s.characters.find(x => x.name === c.name);
+          if (!sc) { sc = { id: store.newId(), name: c.name, versions: [], scope: 'series' }; s.characters.push(sc); }
+          sc.description = c.description;
+          sc.versions = [...(sc.versions || []).filter(x => x.version !== locked.version), locked];
+          sc.lockedVersion = locked.version;
+        }
+      });
     },
   };
 }
 
-function registerStep5Routes(router, { step5, present, videos }) {
-  const base = '/api/videos/:id/frames';
-  const { Reply } = require('../http');
-  router.get(base, ({ params }) => {
-    const v = videos.get(params.id);
-    return { frames: present(v.frames), progress: v.script ? step5.progress(v) : null };
-  });
-  router.post(`${base}/generate`, async ({ params, json }) => new Reply(202, { video: present(step5.generate(params.id, await json())) }));
-  router.post(`${base}/:shotId/regenerate`, async ({ params, json }) => new Reply(202, { video: present(step5.regenerate(params.id, params.shotId, await json())) }));
-  router.patch(`${base}/:shotId`, async ({ params, json }) => ({ video: present(step5.update(params.id, params.shotId, await json())) }));
+function registerStep5Routes(router, { step5, present }) {
+  const base = '/api/videos/:id/characters';
+  const reply = video => ({ video: present(video) });
+  router.post(`${base}/generate`, async ({ params, json }) => reply(await step5.generate(params.id, await json())));
+  router.post(`${base}/:cid/regenerate`, async ({ params, json }) => reply(await step5.regenerate(params.id, params.cid, await json())));
+  router.patch(`${base}/:cid`, async ({ params, json }) => reply(step5.update(params.id, params.cid, await json())));
 }
 
-module.exports = { createStep5Service, registerStep5Routes, QUALITY_KEYS };
+module.exports = { createStep5Service, registerStep5Routes, neededCharacters, generateSheet, referenceImage, BOARD };

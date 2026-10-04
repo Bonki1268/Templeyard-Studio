@@ -103,8 +103,10 @@ test('系列頁鎖定的角色由之後的影片沿用', async t => {
     await s.request('POST', `${base}/photos`, img.buffer, { 'Content-Type': 'image/jpeg', 'X-Filename': encodeURIComponent('廟宇.jpg') });
     await s.put(`${base}/story`, { text: '小晴想把這座廟的故事說給第一次來淡水的人聽。' });
     await s.post(`${base}/steps/2/confirm`);
-    await s.post(`${base}/script/generate`, {});
+    await s.post(`${base}/temple-board/generate`, {});
     await s.post(`${base}/steps/3/confirm`);
+    await s.post(`${base}/script/generate`, {});
+    await s.post(`${base}/steps/4/confirm`);
     assert.equal((await s.get(`${base}/estimate/characters`)).data.newCharacters, 0);
     const r = await s.post(`${base}/characters/generate`, {});
     const c = r.data.video.characters.find(x => x.name === '導覽員小晴');

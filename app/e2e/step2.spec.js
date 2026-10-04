@@ -16,7 +16,7 @@ test.describe('步驟 2 新增影片', () => {
   test('場景：條件未滿足時確認按鈕無法使用', async ({ page, request }) => {
     const video = await createVideo(request, (await createSeries(request)).id);
     await page.goto(`/#/videos/${video.id}/2`);
-    await expect(page.getByRole('button', { name: '確認，產生故事腳本' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '確認，產生寺廟背景板' })).toBeDisabled();
     await expect(page.getByTestId('conditions')).toContainText('尚未選擇寺廟');
     await expect(page.getByTestId('conditions')).toContainText('照片');
     await expect(page.getByTestId('conditions')).toContainText('故事');
@@ -69,7 +69,7 @@ test.describe('步驟 2 新增影片', () => {
     await expect(page.getByTestId('story-choice')).toContainText('已採用潤飾版');
   });
 
-  test('場景：條件都滿足後確認並前往故事腳本', async ({ page, request }) => {
+  test('場景：條件都滿足後確認並前往寺廟背景板', async ({ page, request }) => {
     const video = await createVideo(request, (await createSeries(request)).id);
     await page.goto(`/#/videos/${video.id}/2`);
     await page.getByLabel('搜尋廟名、行政區或主祀神明').fill('鄞山寺');
@@ -79,8 +79,8 @@ test.describe('步驟 2 新增影片', () => {
     await page.getByLabel('你想說的故事').fill(STORY);
     await page.getByLabel('你想說的故事').blur();
     await expect(page.getByTestId('conditions')).toContainText('故事已填寫');
-    await page.getByRole('button', { name: '確認，產生故事腳本' }).click();
+    await page.getByRole('button', { name: '確認，產生寺廟背景板' }).click();
     await expect(page).toHaveURL(new RegExp(`#/videos/${video.id}/3$`));
-    await expect(page.locator('.stepper .current')).toContainText('故事腳本');
+    await expect(page.locator('.stepper .current')).toContainText('寺廟背景板');
   });
 });

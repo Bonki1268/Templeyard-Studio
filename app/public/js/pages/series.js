@@ -2,11 +2,11 @@
 import { h, api, formatDate, toast } from '../ui.js';
 import { seriesForm } from './home.js';
 
-const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '故事腳本', 4: '角色設計', 5: '精緻圖', 6: '影片生成' };
+const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '寺廟背景板', 4: '故事腳本', 5: '角色設計', 6: '精緻圖', 7: '影片生成' };
 
 function videoBadge(v) {
   if (v.status === 'done') return h('span', { class: 'badge badge-ok' }, '已完成');
-  return h('span', { class: 'badge badge-accent' }, `步驟 ${v.currentStep}／6 ${STEP_NAMES[v.currentStep] || ''}`);
+  return h('span', { class: 'badge badge-accent' }, `步驟 ${v.currentStep}／7 ${STEP_NAMES[v.currentStep] || ''}`);
 }
 
 export async function seriesPage(id) {
@@ -58,7 +58,7 @@ export async function seriesPage(id) {
       h('div', { class: 'side stack', style: 'gap:16px;flex:1 1 300px' }, settings, characters),
       h('section', { class: 'grow stack', 'aria-labelledby': 'videos-title', style: 'gap:12px' },
         h('h2', { id: 'videos-title' }, '影片'),
-        videos.length ? videos.map(v => h('a', { class: 'listcard', href: `#/videos/${v.id}/${v.status === 'done' ? 6 : v.currentStep}`, 'data-testid': 'video-item' },
+        videos.length ? videos.map(v => h('a', { class: 'listcard', href: `#/videos/${v.id}/${v.status === 'done' ? 7 : v.currentStep}`, 'data-testid': 'video-item' },
           h('span', { class: 'ph', style: 'width:160px;height:90px;border-radius:8px;flex:none' }, v.status === 'done' ? '成品' : `步驟 ${v.currentStep}`),
           h('span', { class: 'stack', style: 'gap:4px;flex:1;min-width:0' },
             h('span', { style: 'font-size:17px' }, v.title || '未命名影片'),

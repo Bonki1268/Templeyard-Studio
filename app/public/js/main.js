@@ -9,7 +9,7 @@ const routes = [
   [/^#?\/?$/, () => homePage()],
   [/^#\/series\/([^/]+)$/, m => seriesPage(m[1])],
   [/^#\/series\/([^/]+)\/characters$/, m => charactersPage(m[1])],
-  [/^#\/videos\/([^/]+)\/([2-6])$/, m => videoPage(m[1], m[2])],
+  [/^#\/videos\/([^/]+)\/([2-7])$/, m => videoPage(m[1], m[2])],
 ];
 
 async function render() {

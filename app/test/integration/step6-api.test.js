@@ -3,100 +3,114 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { startApp } = require('../helpers');
 const { videoAtStep } = require('./scenario');
-const { probe } = require('../../src/media/ffmpeg');
+const { PRICES } = require('../../src/cost/prices');
 
-test('步驟 6 API：分鏡影片', async t => {
-  // 估價以生成解析度計（測試輸出 320×180，生成高度取 min(720, 180) → 480p 價格）
+test('步驟 6 API', async t => {
   const s = await startApp();
   t.after(() => s.close());
   const { base, videoId } = await videoAtStep(s, 6);
-  const { jobs, config, ai, ledger } = s.app.ctx;
-  let video = (await s.get(base)).data.video;
-  const videoCalls = () => ai.calls.filter(c => c.kind === 'video');
+  const { jobs, config, ai } = s.app.ctx;
+  let video;
 
-  await t.test('場景：生成影片前先看到預估費用並在超過門檻時需要同意', async () => {
-    const r = await s.get(`${base}/estimate/clips`);
-    assert.equal(r.data.seconds, 30);
-    assert.equal(r.data.billedSeconds, 40, '10 格各 3 秒，每段至少以 4 秒計費');
-    assert.equal(r.data.estimate, +(40 * Math.ceil(854 * 480 * 24 / 1024) * 0.014 / 1000).toFixed(4), '測試輸出 180p 以 480p 計價');
-    const denied = await s.post(`${base}/clips/generate`, {});
-    assert.equal(denied.status, 402);
-    assert.equal(denied.data.error.reason, 'threshold');
-    assert.equal(videoCalls().length, 0);
+  await t.test('場景：產生精緻圖前先看到預估費用', async () => {
+    const r = await s.get(`${base}/estimate/frames`);
+    assert.equal(r.data.count, 10);
+    assert.equal(r.data.estimate, +(10 * PRICES.image.perImage).toFixed(4));
   });
 
-  await t.test('場景：以確認的精緻圖作為首格生成每格分鏡影片', async () => {
-    const r = await s.post(`${base}/clips/generate`, { consent: true });
+  await t.test('場景：每格都選定精緻圖後才能確認', async () => {
+    const r = await s.post(`${base}/steps/6/confirm`);
+    assert.equal(r.status, 422);
+    assert.match(r.data.error.unmet[0], /第 1、2、3/);
+  });
+
+  await t.test('場景：逐格產生精緻圖並回報進度', async () => {
+    const r = await s.post(`${base}/frames/generate`, {});
+    assert.equal(r.status, 202);
+    const statuses = Object.values(r.data.video.frames).map(f => f.status);
+    assert.equal(statuses.length, 10);
+    assert.ok(statuses.every(st => ['queued', 'running'].includes(st)));
+    await jobs.idle();
+    const p = (await s.get(`${base}/frames`)).data;
+    assert.deepEqual(p.progress, { total: 10, done: 10, running: 0, queued: 0, failed: 0 });
+    video = (await s.get(base)).data.video;
+    for (const shot of video.script.shots) {
+      const f = video.frames[shot.id];
+      assert.equal(f.status, 'done');
+      assert.equal(f.candidates.length, 1);
+      assert.equal(f.selected, f.candidates[0].id);
+      assert.ok(f.candidates[0].url);
+    }
+  });
+
+  await t.test('場景：產生精緻圖時只送出去識別後的照片與鎖定版本的定裝圖', async () => {
+    const calls = ai.calls.filter(c => c.kind === 'image' && c.request.promptId === 'refined-frame');
+    assert.equal(calls.length, 10);
+    const stored = s.app.ctx.store.get('videos', videoId);
+    const character = stored.characters[0];
+    const board = character.versions.find(x => x.version === character.lockedVersion).images.board.file;
+    for (const call of calls) {
+      for (const ref of call.refs) {
+        assert.ok(ref.startsWith(config.mediaDir + path.sep), `參考圖必須在 media 資料夾：${ref}`);
+        assert.ok(!ref.includes(`${path.sep}private${path.sep}`));
+      }
+      assert.ok(call.refs.includes(path.join(config.mediaDir, board)), '應帶入鎖定版本的定妝板');
+    }
+    const shot1 = stored.script.shots[0];
+    const photo = stored.photos.filter(p => p.status === 'ready')[shot1.photoIndex - 1];
+    assert.ok(calls.some(c => c.refs.includes(path.join(config.mediaDir, photo.file))), '應帶入對應的去識別照片');
+  });
+
+  await t.test('場景：單張依指令重生產生新的候選版本', async () => {
+    const shot = video.script.shots[1];
+    const r = await s.post(`${base}/frames/${shot.id}/regenerate`, { instruction: '光線再暖一點' });
     assert.equal(r.status, 202);
     await jobs.idle();
-    video = (await s.get(base)).data.video;
-    const stored = s.app.ctx.store.get('videos', videoId);
-    assert.equal(videoCalls().length, 10);
-    for (const shot of stored.script.shots) {
-      const frame = stored.frames[shot.id];
-      const selectedFrame = frame.candidates.find(c => c.id === frame.selected);
-      const call = videoCalls().find(c => c.request.messages[0].content.startsWith(`分鏡 ${shot.index}，`));
-      assert.equal(call.firstFrame, path.join(config.mediaDir, selectedFrame.file));
-      assert.equal(call.seconds, shot.seconds);
-      const clip = stored.clips[shot.id];
-      assert.equal(clip.status, 'done');
-      const info = await probe(path.join(config.mediaDir, clip.versions[0].file));
-      assert.ok(Math.abs(info.duration - shot.seconds) < 0.1);
-      assert.ok(video.clips[shot.id].versions[0].url);
-    }
-    assert.equal(ledger.summary(videoId).reserved, 0);
+    const f = (await s.get(base)).data.video.frames[shot.id];
+    assert.equal(f.candidates.length, 2);
+    assert.equal(f.selected, f.candidates[1].id);
+    assert.equal(f.candidates[1].instruction, '光線再暖一點');
+    assert.notEqual(f.candidates[1].file, f.candidates[0].file);
   });
 
-  await t.test('場景：有台詞的格子要求模型原生語音並對口型', async () => {
-    for (const shot of video.script.shots) {
-      const call = videoCalls().find(c => c.request.messages[0].content.startsWith(`分鏡 ${shot.index}，`));
-      assert.equal(call.nativeVoice, Boolean(shot.line) && shot.speaker !== '旁白', `第 ${shot.index} 格`);
-    }
-  });
-
-  await t.test('場景：需要時也鎖定末格', async () => {
-    const shot = video.script.shots[0];
-    await s.post(`${base}/clips/${shot.id}/regenerate`, { lockLastFrame: true, consent: true });
-    await jobs.idle();
-    const call = videoCalls().at(-1);
-    assert.equal(call.lastFrame, call.firstFrame);
-  });
-
-  await t.test('場景：單格依指令重生分鏡影片', async () => {
-    const before = (await s.get(base)).data.video.clips;
+  await t.test('場景：選定候選版本', async () => {
     const shot = video.script.shots[1];
-    await s.post(`${base}/clips/${shot.id}/regenerate`, { instruction: '轉頭的動作慢一點', consent: true });
-    await jobs.idle();
-    const clips = (await s.get(base)).data.video.clips;
-    assert.equal(clips[shot.id].versions.length, 2);
-    assert.equal(clips[shot.id].selected, clips[shot.id].versions[1].id);
-    assert.equal(clips[shot.id].versions[1].instruction, '轉頭的動作慢一點');
-    for (const other of video.script.shots.slice(2)) assert.deepEqual(clips[other.id].versions.map(x => x.id), before[other.id].versions.map(x => x.id));
-    const r = await s.request('PATCH', `${base}/clips/${shot.id}`, { selected: clips[shot.id].versions[0].id });
-    assert.equal(r.data.video.clips[shot.id].selected, clips[shot.id].versions[0].id);
+    const first = (await s.get(base)).data.video.frames[shot.id].candidates[0];
+    const r = await s.request('PATCH', `${base}/frames/${shot.id}`, { selected: first.id });
+    assert.equal(r.data.video.frames[shot.id].selected, first.id);
+    const bad = await s.request('PATCH', `${base}/frames/${shot.id}`, { selected: 'nope' });
+    assert.equal(bad.status, 422);
   });
 
-  await t.test('場景：記錄每格影片的品質檢查', async () => {
+  await t.test('場景：記錄品質檢查結果', async () => {
     const shot = video.script.shots[1];
-    const quality = { face: true, lipsync: false, hands: true, temple: true };
-    const r = await s.request('PATCH', `${base}/clips/${shot.id}`, { quality });
-    assert.deepEqual(r.data.video.clips[shot.id].quality, quality);
+    const quality = { face: true, temple: true, hands: false, people: true };
+    const r = await s.request('PATCH', `${base}/frames/${shot.id}`, { quality });
+    assert.deepEqual(r.data.video.frames[shot.id].quality, quality);
   });
 
-  await t.test('場景：分鏡影片失敗時退回費用並可重生', async () => {
-    const shot = video.script.shots[3];
-    const spent = ledger.summary(videoId).spent;
-    ai.failNext('video', '影片服務逾時');
-    await s.post(`${base}/clips/${shot.id}/regenerate`, { consent: true });
+  await t.test('場景：生成失敗的格子標示失敗並退回費用，可以再重生', async () => {
+    const shot = video.script.shots[4];
+    const spentBefore = s.app.ctx.ledger.summary(videoId).spent;
+    ai.failNext('image', '圖片服務暫時無法使用');
+    await s.post(`${base}/frames/${shot.id}/regenerate`, {});
     await jobs.idle();
-    let clip = (await s.get(base)).data.video.clips[shot.id];
-    assert.equal(clip.status, 'failed');
-    assert.match(clip.error, /影片服務逾時/);
-    assert.equal(ledger.summary(videoId).spent, spent);
-    assert.equal(ledger.summary(videoId).reserved, 0);
-    await s.post(`${base}/clips/${shot.id}/regenerate`, { consent: true });
+    let f = (await s.get(base)).data.video.frames[shot.id];
+    assert.equal(f.status, 'failed');
+    assert.match(f.error, /圖片服務暫時無法使用/);
+    const sum = s.app.ctx.ledger.summary(videoId);
+    assert.equal(sum.spent, spentBefore);
+    assert.equal(sum.reserved, 0);
+    await s.post(`${base}/frames/${shot.id}/regenerate`, {});
     await jobs.idle();
-    clip = (await s.get(base)).data.video.clips[shot.id];
-    assert.equal(clip.status, 'done');
+    f = (await s.get(base)).data.video.frames[shot.id];
+    assert.equal(f.status, 'done');
+    assert.ok(f.selected);
+  });
+
+  await t.test('場景：每格都選定精緻圖後才能確認（通過）', async () => {
+    const r = await s.post(`${base}/steps/6/confirm`);
+    assert.equal(r.status, 200);
+    assert.equal(r.data.video.currentStep, 7);
   });
 });

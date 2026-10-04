@@ -1,22 +1,22 @@
-// 步驟 6：影片生成（分鏡影片、聲音與字幕、成品合成、確認與下載）。
+// 步驟 6：精緻圖模擬。分鏡膠捲逐格顯示進度，完成一格就填上一格。
 import { h, api, toast, money } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
 
-const CLIP_QUALITY = [['face', '角色沒有變臉'], ['lipsync', '台詞口型對得上'], ['hands', '手部與文字沒有變形'], ['temple', '廟宇建築與照片一致']];
-const FINAL_QUALITY = [['face', '每格角色都沒有變臉'], ['lipsync', '台詞口型對得上'], ['subtitles', '字幕與台詞一致'], ['duration', '總長度 30 秒以內']];
-const STATUS = { done: '已完成', running: '生成中', queued: '等待中', failed: '失敗', idle: '未生成' };
-
-const fmt = sec => `${String(Math.floor(sec / 60)).padStart(2, '0')}:${(sec % 60).toFixed(1).padStart(4, '0')}`;
+const QUALITY = [
+  ['face', '角色臉、髮型、服裝與定妝板一致'],
+  ['temple', '廟宇建築與照片一致'],
+  ['hands', '手部與畫面中的文字沒有變形'],
+  ['people', '沒有可辨識的真實民眾'],
+];
 
 export async function render({ video, refreshCost }) {
   const base = `/api/videos/${video.id}`;
   let v = video;
   let current = v.script.shots[0]?.id;
-  let tracks = (await api('GET', `${base}/music`)).tracks;
   const root = h('div');
   let polling = false;
 
-  const busy = () => v.script.shots.some(s => ['queued', 'running'].includes(v.clips[s.id]?.status)) || v.final?.status === 'composing';
+  const busy = () => v.script.shots.some(s => ['queued', 'running'].includes(v.frames[s.id]?.status));
   async function poll() {
     if (polling) return;
     polling = true;
@@ -34,137 +34,97 @@ export async function render({ video, refreshCost }) {
     if (button) button.disabled = true;
     try {
       const r = await withConsent(fn);
-      if (r.video) v = { ...r.video, viewStep: 6 };
-      if (r.track) tracks = (await api('GET', `${base}/music`)).tracks;
+      v = { ...r.video, viewStep: 6 };
       await draw();
       poll();
-      refreshCost();
     } catch (err) {
       if (err.code !== 'cancelled') toast(err.message);
     } finally { if (button) button.disabled = false; }
   }
 
-  const selectedClip = shot => { const c = v.clips[shot.id]; return c?.versions.find(x => x.id === c.selected); };
-
-  function preview() {
-    const shot = v.script.shots.find(s => s.id === current);
-    const final = v.final?.status === 'done' && !v.final.stale ? v.final : null;
-    const clip = shot && selectedClip(shot);
-    const src = final ? final.url : clip?.url;
-    return h('div', { class: 'stack', 'data-testid': 'preview' },
-      h('div', { style: 'position:relative;background:var(--ink);border-radius:16px;aspect-ratio:16/9;overflow:hidden;display:flex;align-items:center;justify-content:center;color:#C9CDD3' },
-        src ? h('video', { src, controls: true, style: 'width:100%;height:100%', preload: 'metadata' }) : '成品預覽',
-        !final && clip && shot.subtitle ? h('div', { style: 'position:absolute;bottom:6%;left:0;right:0;text-align:center;color:#fff;font-size:20px;text-shadow:0 0 4px #000;pointer-events:none' }, shot.subtitle) : null),
-      h('p', { class: 'small muted', 'data-testid': 'final-info' },
-        final ? `成品 ${fmt(final.duration)}・${final.width}×${final.height}・${Math.round(final.fps)} fps`
-          : v.final?.status === 'composing' ? '成品合成中…'
-          : v.final?.status === 'failed' ? `合成失敗：${v.final.error}`
-          : v.final?.stale ? '分鏡或聲音設定已變更，請重新合成成品' : `正在預覽第 ${shot?.index ?? ''} 格`));
+  function strip() {
+    return h('div', { style: 'background:var(--ink);border-radius:16px;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px', role: 'list', 'aria-label': '分鏡膠捲' },
+      v.script.shots.map(s => {
+        const f = v.frames[s.id] || {};
+        const sel = f.candidates?.find(c => c.id === f.selected);
+        const inner = sel ? h('img', { src: sel.url, alt: `第 ${s.index} 格精緻圖` })
+          : f.status === 'running' ? h('span', { style: 'color:#fff' }, '生成中')
+          : f.status === 'queued' ? h('span', { style: 'color:#ccc' }, '等待中')
+          : f.status === 'failed' ? h('span', { style: 'color:#F0C9C2' }, '失敗') : String(s.index);
+        return h('button', { role: 'listitem', 'data-testid': 'strip-frame', style: 'background:none;border:0;padding:0;cursor:pointer;text-align:left;font:inherit', onclick: () => { current = s.id; draw(); } },
+          h('div', { class: `ph${s.id === current ? ' selected' : ''}`, style: `aspect-ratio:16/9;border-radius:8px;${sel ? '' : 'border:1px dashed #8A909A;background:#2A2D34'}` }, inner),
+          h('span', { class: 'small', style: 'color:#C9CDD3;display:block;margin-top:6px' }, `第 ${s.index} 格・${s.shotSize}`));
+      }));
   }
 
-  function clipGrid() {
-    return h('div', { class: 'grid', style: 'grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px' }, v.script.shots.map(s => {
-      const c = v.clips[s.id];
-      const st = c?.status || 'idle';
-      const frame = v.frames[s.id]?.candidates.find(x => x.id === v.frames[s.id].selected);
-      return h('button', { class: `card${s.id === current ? ' selected' : ''}`, 'data-testid': 'clip', style: 'padding:8px;cursor:pointer;text-align:left;font:inherit', onclick: () => { current = s.id; draw(); } },
-        h('div', { class: 'ph', style: 'aspect-ratio:16/9;border-radius:8px' }, frame ? h('img', { src: frame.url, alt: '' }) : `第 ${s.index} 格`),
-        h('div', { class: 'row small', style: 'justify-content:space-between;margin-top:6px' }, h('span', {}, `${s.seconds}s`),
-          h('span', { style: { color: st === 'failed' ? 'var(--accent)' : st === 'done' ? 'var(--ok)' : 'var(--muted)' } }, STATUS[st])));
-    }));
-  }
-
-  function shotPanel() {
-    const shot = v.script.shots.find(s => s.id === current);
-    if (!shot) return null;
-    const c = v.clips[shot.id];
-    const instruction = h('input', { id: 'clip-instruction', class: 'input', placeholder: '例如：轉頭的動作慢一點，口型對準台詞' });
-    const lockLast = h('input', { type: 'checkbox' });
+  function detail() {
+    const shot = v.script.shots.find(s => s.id === current) || v.script.shots[0];
+    const f = v.frames[shot.id] || { candidates: [], quality: {} };
+    const sel = f.candidates.find(c => c.id === f.selected);
+    const instruction = h('input', { id: 'frame-instruction', class: 'input', placeholder: '例如：光線再暖一點，小晴往畫面左邊站' });
     const regen = (label, withInstruction) => {
-      const b = h('button', { class: 'btn', onclick: () => run(b, consent => api('POST', `${base}/clips/${shot.id}/regenerate`, {
-        instruction: withInstruction ? instruction.value : '', lockLastFrame: lockLast.checked, consent })) }, label);
+      const b = h('button', { class: 'btn', onclick: () => run(b, consent => api('POST', `${base}/frames/${shot.id}/regenerate`, { instruction: withInstruction ? instruction.value : '', consent })) }, label);
       return b;
     };
-    return h('section', { class: 'card stack' },
-      h('div', { class: 'row', style: 'justify-content:space-between' }, h('strong', {}, `第 ${shot.index} 格・${shot.shotSize}・${shot.seconds} 秒`),
-        c?.versions.length ? h('div', { class: 'row', style: 'gap:6px' }, c.versions.map((x, i) => h('button', {
-          class: `btn btn-sm${x.id === c.selected ? ' btn-primary' : ''}`, 'aria-pressed': String(x.id === c.selected),
-          onclick: () => run(null, () => api('PATCH', `${base}/clips/${shot.id}`, { selected: x.id })),
-        }, `v${i + 1}`))) : null),
-      c?.status === 'failed' ? h('p', { class: 'error' }, `生成失敗：${c.error}`) : null,
-      h('label', { for: 'clip-instruction', class: 'label' }, `第 ${shot.index} 格的調整指令`),
-      h('div', { class: 'row', style: 'flex-wrap:nowrap' }, instruction, regen('依指令重生', true), regen('直接重生', false)),
-      h('label', { class: 'check small' }, lockLast, '精緻圖同時作為末格（鎖定首尾畫格）'),
-      c?.versions.length ? h('div', { class: 'row small', style: 'gap:16px' }, CLIP_QUALITY.map(([k, label]) => h('label', { class: 'check small' },
-        h('input', { type: 'checkbox', checked: Boolean(c.quality?.[k]), onchange: e => run(null, () => api('PATCH', `${base}/clips/${shot.id}`, { quality: { [k]: e.target.checked } })) }), label))) : null);
+    return h('section', { class: 'card stack', style: 'gap:14px' },
+      h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', {}, `第 ${shot.index} 格：${shot.action}`),
+        h('span', { class: 'small muted' }, `${shot.shotSize}${shot.photoIndex ? `・照片 ${shot.photoIndex}` : ''}・${shot.seconds} 秒`)),
+      h('div', { class: 'ph', style: 'aspect-ratio:16/9;border-radius:12px' },
+        sel ? h('img', { src: sel.url, alt: `第 ${shot.index} 格精緻圖（1920×1080）` }) : f.status === 'failed' ? `生成失敗：${f.error}` : '精緻圖（1920×1080）'),
+      f.candidates.length ? h('div', { class: 'stack', style: 'gap:8px' }, h('span', { class: 'label' }, '候選版本'),
+        h('div', { class: 'row' }, f.candidates.map((c, i) => h('button', {
+          class: `btn btn-sm${c.id === f.selected ? ' selected' : ''}`, 'data-testid': 'candidate',
+          onclick: () => run(null, () => api('PATCH', `${base}/frames/${shot.id}`, { selected: c.id })),
+        }, `版本 ${i + 1}${c.id === f.selected ? '・已選' : ''}`)))) : null,
+      h('div', { class: 'field' }, h('label', { for: 'frame-instruction' }, '調整指令'),
+        h('div', { class: 'row', style: 'flex-wrap:nowrap' }, instruction, regen('依指令重生', true), regen('直接重生', false))));
   }
 
-  async function sidePanel() {
-    const audio = v.audio || {};
-    const music = h('select', { id: 'music', class: 'input', onchange: e => run(null, () => api('PUT', `${base}/audio`, { music: e.target.value })) },
-      tracks.map(t => h('option', { value: t.id, selected: t.id === audio.music }, t.uploaded ? `${t.name}（上傳）` : t.name)));
-    const upload = h('input', { type: 'file', accept: 'audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/wav', style: 'display:none', onchange: async e => {
-      const file = e.target.files[0];
-      if (!file) return;
-      await run(null, async () => {
-        const res = await fetch(`${base}/music`, { method: 'POST', headers: { 'Content-Type': file.type, 'X-Filename': encodeURIComponent(file.name) }, body: file });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error?.message);
-        return data;
-      });
-    } });
-    const voice = (value, label) => h('label', { class: 'opt', style: 'width:100%' },
-      h('input', { type: 'radio', name: 'voiceMode', value, checked: (audio.voiceMode || 'native') === value, onchange: () => run(null, () => api('PUT', `${base}/audio`, { voiceMode: value })) }), label);
-    const allClips = v.script.shots.every(s => selectedClip(s));
-    const est = allClips ? await api('GET', `${base}/estimate/compose`) : null;
-    const composeBtn = h('button', { class: 'btn btn-primary', disabled: !allClips || v.final?.status === 'composing', onclick: () => run(composeBtn, consent => api('POST', `${base}/compose`, { consent })) },
-      `合成成品${est ? `（預估 ${money(est.estimate)}）` : ''}`);
-    const final = v.final?.status === 'done' ? v.final : null;
-    return h('div', { class: 'stack', style: 'gap:16px' },
-      h('section', { class: 'card stack' }, h('h2', {}, '聲音與字幕'),
-        h('span', { class: 'small muted' }, '台詞語音'), voice('native', '模型原生語音，對上口型'), voice('tts', '語音合成（旁白）'),
-        h('label', { for: 'music', class: 'small muted' }, '背景音樂'), music,
-        h('button', { class: 'btn btn-sm', style: 'align-self:flex-start', onclick: () => upload.click() }, '上傳自己的音樂'), upload,
-        h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: audio.subtitles !== false, onchange: e => run(null, () => api('PUT', `${base}/audio`, { subtitles: e.target.checked })) }), '燒錄繁中字幕（下方置中、白字）'),
-        composeBtn),
-      h('section', { class: 'card stack' }, h('h2', {}, '成品檢查'),
-        FINAL_QUALITY.map(([k, label]) => h('label', { class: 'check' }, h('input', { type: 'checkbox', disabled: !final, checked: Boolean(final?.quality?.[k]),
-          onchange: e => run(null, () => api('PATCH', `${base}/final`, { quality: { [k]: e.target.checked } })) }), label))));
+  function qualityCard() {
+    const shot = v.script.shots.find(s => s.id === current) || v.script.shots[0];
+    const f = v.frames[shot.id];
+    const saved = h('span', { class: 'small', style: 'color:var(--ok);visibility:hidden', 'data-testid': 'quality-saved' }, '✓ 已儲存');
+    return h('section', { class: 'card stack' }, h('h2', {}, '品質檢查'), h('p', { class: 'small muted' }, '逐項確認，不合格就重生這一格。'),
+      QUALITY.map(([key, label]) => h('label', { class: 'check' }, h('input', {
+        type: 'checkbox', checked: Boolean(f?.quality?.[key]), disabled: !f?.candidates?.length,
+        onchange: async e => {
+          try {
+            const r = await api('PATCH', `${base}/frames/${shot.id}`, { quality: { [key]: e.target.checked } });
+            v = { ...r.video, viewStep: 6 };
+            saved.style.visibility = 'visible';
+          } catch (err) { toast(err.message); }
+        },
+      }), label)), saved);
   }
 
   async function draw() {
-    const anyClips = v.script.shots.some(s => v.clips[s.id]);
-    if (!anyClips) {
-      const est = await api('GET', `${base}/estimate/clips`);
-      const btn = h('button', { class: 'btn btn-primary', onclick: () => run(btn, consent => api('POST', `${base}/clips/generate`, { consent })) }, `生成分鏡影片（預估 ${money(est.estimate)}）`);
-      root.replaceChildren(h('main', { class: 'main stack', style: 'gap:20px' }, h('h1', {}, '影片生成'), staleNotice(v, 6),
-        h('div', { class: 'card stack' }, h('p', {}, `每格以確認的精緻圖作為首格生成分鏡影片（共 ${est.count} 格、${est.seconds} 秒），再加上台詞、背景音樂與字幕。`), h('div', {}, btn))),
+    const anyFrames = v.script.shots.some(s => v.frames[s.id]);
+    if (!anyFrames) {
+      const est = await api('GET', `${base}/estimate/frames`);
+      const btn = h('button', { class: 'btn btn-primary', onclick: () => run(btn, consent => api('POST', `${base}/frames/generate`, { consent })) }, `產生精緻圖（預估 ${money(est.estimate)}）`);
+      root.replaceChildren(h('main', { class: 'main stack', style: 'gap:20px' }, h('h1', {}, '精緻圖模擬'), staleNotice(v, 5),
+        h('div', { class: 'card stack' }, h('p', {}, `以你的照片為場景、定妝板為角色，為 ${est.count} 格分鏡逐格產生精緻圖。`), h('div', {}, btn))),
         actionBar(h('a', { class: 'btn', href: `#/videos/${v.id}/5` }, '上一步'), h('span')));
       return;
     }
-    const total = v.script.shots.reduce((s, x) => s + Number(x.seconds), 0);
-    const confirmed = v.steps[6].status === 'confirmed';
-    const finalReady = v.final?.status === 'done' && !v.final.stale;
-    const missing = v.script.shots.filter(s => !selectedClip(s)).length;
-    const confirmBtn = h('button', { class: 'btn', disabled: confirmed || !finalReady, onclick: async () => {
-      try { v = { ...(await api('POST', `${base}/steps/6/confirm`)).video, viewStep: 6 }; toast('已確認成品，可以下載了'); await draw(); } catch (err) { toast(err.message); }
-    } }, confirmed ? '已確認成品' : '確認成品');
-    const download = confirmed
-      ? h('a', { class: 'btn btn-primary', href: `${base}/download`, download: '' }, '下載 MP4')
-      : h('span', { class: 'btn btn-primary', 'aria-disabled': 'true', style: 'opacity:.5;cursor:not-allowed', title: '確認成品後才能下載' }, '下載 MP4');
+    const p = { total: v.script.shots.length, done: 0, running: 0, failed: 0 };
+    for (const s of v.script.shots) { const st = v.frames[s.id]?.status; if (st === 'done') p.done++; if (st === 'running' || st === 'queued') p.running++; if (st === 'failed') p.failed++; }
+    const missing = v.script.shots.filter(s => !v.frames[s.id]?.selected).length;
+    const retryAll = p.failed || (missing && !p.running)
+      ? h('button', { class: 'btn btn-sm', onclick: e => run(e.target, consent => api('POST', `${base}/frames/generate`, { consent })) }, '產生缺少的格子') : null;
+    const confirmBtn = h('button', { class: 'btn btn-primary', disabled: missing > 0, onclick: async () => {
+      try { await api('POST', `${base}/steps/6/confirm`); location.hash = `#/videos/${v.id}/7`; } catch (err) { toast(err.message); }
+    } }, '確認精緻圖，生成影片');
     root.replaceChildren(
-      h('main', { class: 'main' },
-        h('div', { class: 'page-head' },
-          h('div', {}, h('h1', {}, '影片生成'), h('p', {}, '每格以確認的精緻圖作為首格生成分鏡影片，再加上台詞、背景音樂與字幕。')),
-          h('span', { class: 'mono small' }, `${fmt(total)} · ${v.series.output.width}×${v.series.output.height} · ${v.series.output.fps} fps`)),
-        staleNotice(v, 6),
-        h('div', { class: 'layout' },
-          h('div', { class: 'grow stack', style: 'gap:16px' }, preview(), clipGrid(),
-            missing && !busy() ? h('button', { class: 'btn btn-sm', style: 'align-self:flex-start', onclick: e => run(e.target, consent => api('POST', `${base}/clips/generate`, { consent })) }, '生成缺少的格子') : null,
-            shotPanel()),
-          h('div', { class: 'side' }, await sidePanel()))),
+      h('main', { class: 'main stack', style: 'gap:20px' },
+        h('div', { class: 'page-head', style: 'margin:0' },
+          h('div', {}, h('h1', {}, '精緻圖模擬'), h('p', {}, '以你的照片為場景、定妝板為角色，逐格產生；完成一格就填上一格。')),
+          h('div', { class: 'row' }, h('span', { 'data-testid': 'progress' }, `${p.done}／${p.total} 格完成${p.running ? `・${p.running} 格生成中` : ''}${p.failed ? `・${p.failed} 格失敗` : ''}`), retryAll)),
+        staleNotice(v, 5),
+        strip(),
+        h('div', { class: 'layout' }, h('div', { class: 'grow' }, detail()), h('div', { class: 'side' }, qualityCard()))),
       actionBar(h('a', { class: 'btn', href: `#/videos/${v.id}/5` }, '上一步'),
-        h('div', { class: 'row' }, h('span', { class: 'small muted' }, confirmed ? '✓ 影片已完成' : finalReady ? '確認成品後可以下載' : '合成成品後才能確認'), confirmBtn, download)));
+        h('div', { class: 'row' }, h('span', { class: 'small muted' }, missing ? `還有 ${missing} 格沒有精緻圖` : `${p.total} 格都已選定精緻圖`), confirmBtn)));
   }
 
   await draw();

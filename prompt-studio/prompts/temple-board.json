@@ -1,0 +1,65 @@
+{
+  "id": "temple-board",
+  "step": 3,
+  "name": "寺廟四格背景板",
+  "description": "步驟 3：以去識別後的寺廟照片產生一張四格背景板（正面全景、斜角／側面、廟埕與周邊環境、特色細節），作為精緻圖的場景參考，確保影片中的寺廟一致。",
+  "version": 1,
+  "updatedAt": "2026-10-04T12:00:00.000Z",
+  "target": {
+    "kind": "image",
+    "model": "",
+    "aspectRatio": "16:9"
+  },
+  "system": "Four-panel location reference board of ONE real temple: a single image split into a 2×2 grid, photorealistic, consistent daylight and color grading across panels, completely empty of people and vehicles. Reproduce the architecture, roof shape, colors, signboards and decorations exactly as in the supplied photos; do not invent buildings or change proportions.\n第 1 格（左上）正面全景：寺廟正面全景，呈現建築整體與比例。\n第 2 格（右上）斜角／側面：斜角或側面，呈現屋頂層次與建築深度。\n第 3 格（左下）廟埕與周邊環境：廟埕地面與周邊環境，人物走位時的地面與空間。\n第 4 格（右下）特色細節特寫：屋脊剪黏、門神、石獅或匾額等特色細節特寫。\n畫面中沒有任何人。No text overlays, no numbers, no logos.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "template": "寺廟：{{temple.name}}（{{temple.district}}，主祀{{temple.deity}}）\n寺廟歷史與簡介（使用者提供）：{{temple.history}}\n參考照片：{{photos}}\n系列視覺風格：{{series.style}}\n參考的背景板版本：{{reference}}\n使用者調整指令：{{instruction}}",
+  "variables": [
+    {
+      "name": "temple.name",
+      "label": "廟名",
+      "required": true,
+      "example": "鄞山寺"
+    },
+    {
+      "name": "temple.district",
+      "label": "行政區",
+      "required": false,
+      "example": "淡水區"
+    },
+    {
+      "name": "temple.deity",
+      "label": "主祀神明",
+      "required": false,
+      "example": "定光古佛"
+    },
+    {
+      "name": "temple.history",
+      "label": "寺廟歷史與簡介（使用者貼上）",
+      "required": false,
+      "example": ""
+    },
+    {
+      "name": "photos",
+      "label": "參考照片說明",
+      "required": true,
+      "example": "1. 廟宇正面.jpg；2. 廟埕石獅.jpg"
+    },
+    {
+      "name": "series.style",
+      "label": "系列視覺風格",
+      "required": true,
+      "example": "溫暖寫實、黃昏暖色調"
+    },
+    {
+      "name": "reference",
+      "label": "既有背景板版本",
+      "required": false,
+      "example": ""
+    },
+    {
+      "name": "instruction",
+      "label": "使用者調整指令",
+      "required": false,
+      "example": "天色改成黃昏"
+    }
+  ]
+}

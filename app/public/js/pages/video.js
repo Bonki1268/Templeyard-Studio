@@ -1,7 +1,7 @@
 // 影片頁外框：麵包屑、步驟列、費用，並依步驟載入內容。
 import { h, api, money, ApiError } from '../ui.js';
 
-export const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '故事腳本', 4: '角色設計', 5: '精緻圖', 6: '影片生成' };
+export const STEP_NAMES = { 1: '系列設定', 2: '新增影片', 3: '寺廟背景板', 4: '故事腳本', 5: '角色設計', 6: '精緻圖', 7: '影片生成' };
 
 const stepModules = {
   2: () => import('./step2.js'),
@@ -9,6 +9,7 @@ const stepModules = {
   4: () => import('./step4.js'),
   5: () => import('./step5.js'),
   6: () => import('./step6.js'),
+  7: () => import('./step7.js'),
 };
 
 // 付費生成前的再次同意：伺服器回 402 時顯示費用與原因，同意後帶 consent 重送。
@@ -36,9 +37,9 @@ export function confirmDialog(title, detail) {
 }
 
 function stepper(video) {
-  const items = [1, 2, 3, 4, 5, 6].map(n => {
+  const items = [1, 2, 3, 4, 5, 6, 7].map(n => {
     const st = video.steps[n]?.status;
-    const reachable = n === 1 || [2, 3, 4, 5, 6].filter(s => s < n).every(s => video.steps[s].status === 'confirmed');
+    const reachable = n === 1 || [2, 3, 4, 5, 6, 7].filter(s => s < n).every(s => video.steps[s].status === 'confirmed');
     const cls = n === video.viewStep ? 'current' : st === 'confirmed' ? 'done' : st === 'stale' ? 'stale' : '';
     const dot = h('span', { class: 'dot' }, st === 'confirmed' && n !== video.viewStep ? '✓' : String(n));
     const label = [dot, STEP_NAMES[n], st === 'stale' ? h('span', { class: 'badge badge-warn' }, '需重新確認') : null];
@@ -63,7 +64,7 @@ export async function videoPage(id, step) {
       costEl),
     stepper(video)));
 
-  const blocked = [2, 3, 4, 5, 6].find(s => s < step && video.steps[s].status !== 'confirmed');
+  const blocked = [2, 3, 4, 5, 6, 7].find(s => s < step && video.steps[s].status !== 'confirmed');
   let body;
   if (blocked) {
     body = h('main', { class: 'main' }, h('p', { class: 'notice' }, `請先確認步驟 ${blocked}「${STEP_NAMES[blocked]}」。`),
