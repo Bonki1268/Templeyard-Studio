@@ -14,9 +14,14 @@ test.describe.serial('步驟 4 角色設計', () => {
     await page.goto(`/#/videos/${ctx.video.id}/4`);
     await page.getByRole('button', { name: /產生角色/ }).click();
     await expect(page.getByTestId('character-item')).toContainText('導覽員');
-    for (const name of ['正面', '側面', '背面', '定裝圖']) {
-      await expect(page.getByRole('img', { name: new RegExp(name) })).toBeVisible();
-    }
+    await expect(page.getByRole('img', { name: '導覽員 定妝板' })).toBeVisible();
+  });
+
+  test('場景：角色設計頁顯示四格定妝板與各格說明', async ({ page }) => {
+    await page.goto(`/#/videos/${ctx.video.id}/4`);
+    await expect(page.getByRole('img', { name: '導覽員 定妝板' })).toBeVisible();
+    const legend = page.getByTestId('board-legend');
+    for (const text of ['正面・不要頭', '側面', '背面', '頭部特寫']) await expect(legend).toContainText(text);
   });
 
   test('場景：依指令重新產生角色並切換版本', async ({ page }) => {

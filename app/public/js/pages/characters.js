@@ -1,8 +1,7 @@
-// 角色庫：一個系列的共同角色。新增（AI 撰寫描述）、刪除、產生三視圖與定裝圖、鎖定定裝版本。
+// 角色庫：一個系列的共同角色。新增（AI 撰寫描述）、刪除、產生四格定妝板、鎖定定裝版本。
 import { h, api, mount, toast, money } from '../ui.js';
 import { withConsent } from './video.js';
-
-const VIEWS = [['front', '正面'], ['side', '側面'], ['back', '背面'], ['costume', '定裝圖']];
+import { boardImage, boardView } from './board.js';
 
 export async function charactersPage(id) {
   const base = `/api/series/${id}`;
@@ -11,7 +10,7 @@ export async function charactersPage(id) {
     api('GET', `${base}/estimate/characters`).catch(() => ({ draft: 0, sheet: 0 })),
   ]);
   const list = h('section', { class: 'stack', style: 'gap:12px', 'aria-label': '角色清單' });
-  let open = null; // 展開定裝圖的角色 id
+  let open = null; // 展開定妝板的角色 id
   let confirming = null; // 等待確認刪除的角色 id
   let adding = false;
 
@@ -38,16 +37,17 @@ export async function charactersPage(id) {
 
   function item(c) {
     const locked = c.versions.find(v => v.version === c.lockedVersion);
+    const thumb = boardImage(locked?.images);
     return h('article', { class: 'card stack', style: 'gap:12px', 'data-testid': 'library-character' },
       h('div', { class: 'row', style: 'gap:14px;align-items:flex-start;flex-wrap:nowrap' },
         h('span', { class: 'ph', style: 'width:72px;height:96px;border-radius:10px;flex:none;font-size:12px' },
-          locked?.images?.costume ? h('img', { src: locked.images.costume.url, alt: `${c.name}定裝圖` }) : '定裝圖'),
+          thumb ? h('img', { src: thumb.url, alt: `${c.name}定妝板` }) : '定妝板'),
         h('div', { class: 'stack', style: 'gap:4px;flex:1;min-width:0' },
           h('h2', { style: 'font-size:18px;margin:0' }, c.name),
-          h('span', { class: 'small muted' }, locked ? `定裝版本 v${c.lockedVersion}・已鎖定` : c.versions.length ? `已有 ${c.versions.length} 個版本・尚未鎖定` : '尚未產生定裝圖'),
+          h('span', { class: 'small muted' }, locked ? `定裝版本 v${c.lockedVersion}・已鎖定` : c.versions.length ? `已有 ${c.versions.length} 個版本・尚未鎖定` : '尚未產生定妝板'),
           c.description ? h('span', { class: 'small muted' }, c.description) : null,
           h('div', { class: 'row', style: 'gap:6px' },
-            h('button', { class: 'btn btn-sm', 'aria-expanded': String(open === c.id), onclick: () => { open = open === c.id ? null : c.id; draw(); } }, '定裝圖'),
+            h('button', { class: 'btn btn-sm', 'aria-expanded': String(open === c.id), onclick: () => { open = open === c.id ? null : c.id; draw(); } }, '定妝板'),
             deleteControls(c)))),
       open === c.id ? panel(c) : null);
   }
@@ -60,7 +60,7 @@ export async function charactersPage(id) {
     const gen = h('button', { class: 'btn btn-primary btn-sm', onclick: async () => {
       const r = await run(gen, consent => api('POST', `${base}/characters/${c.id}/generate`, { description: desc.value, instruction: instruction.value, consent }));
       if (r) replace(r.character);
-    } }, `${c.versions.length ? '重新產生' : '產生定裝圖'}（預估 ${money(est.sheet)}）`);
+    } }, `${c.versions.length ? '重新產生' : '產生定妝板'}（預估 ${money(est.sheet)}）`);
     const lock = version && version.version !== c.lockedVersion ? h('button', { class: 'btn btn-sm', onclick: async () => {
       const r = await run(lock, () => api('PATCH', `${base}/characters/${c.id}`, { lockedVersion: version.version }));
       if (r) { replace(r.character); toast(`已鎖定 ${c.name} v${version.version}`); }
@@ -70,10 +70,7 @@ export async function charactersPage(id) {
         class: `btn btn-sm${x.version === shown ? ' btn-primary' : ''}`, 'aria-pressed': String(x.version === shown),
         onclick: async () => { const r = await run(null, () => api('PATCH', `${base}/characters/${c.id}`, { selectedVersion: x.version })); if (r) replace(r.character); },
       }, `v${x.version}${x.version === c.lockedVersion ? '・鎖定' : ''}`))) : null,
-      version ? h('div', { class: 'grid grid-4' }, VIEWS.map(([key, label]) => h('figure', { style: 'margin:0', class: 'stack' },
-        h('div', { class: `ph${key === 'costume' ? ' selected' : ''}`, style: 'aspect-ratio:3/4;border-radius:10px' },
-          version.images?.[key] ? h('img', { src: version.images[key].url, alt: `${c.name} ${label}` }) : label),
-        h('figcaption', { class: 'small muted' }, label)))) : null,
+      version ? boardView(c.name, version.images) : null,
       h('div', { class: 'field' }, h('label', { for: desc.id }, '外觀描述'), desc),
       h('div', { class: 'field' }, h('label', { for: instruction.id }, '調整指令（選填）'), instruction),
       h('div', { class: 'row', style: 'gap:8px' }, gen, lock),

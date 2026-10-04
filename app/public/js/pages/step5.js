@@ -3,7 +3,7 @@ import { h, api, toast, money } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
 
 const QUALITY = [
-  ['face', '角色臉、髮型、服裝與定裝圖一致'],
+  ['face', '角色臉、髮型、服裝與定妝板一致'],
   ['temple', '廟宇建築與照片一致'],
   ['hands', '手部與畫面中的文字沒有變形'],
   ['people', '沒有可辨識的真實民眾'],
@@ -103,7 +103,7 @@ export async function render({ video, refreshCost }) {
       const est = await api('GET', `${base}/estimate/frames`);
       const btn = h('button', { class: 'btn btn-primary', onclick: () => run(btn, consent => api('POST', `${base}/frames/generate`, { consent })) }, `產生精緻圖（預估 ${money(est.estimate)}）`);
       root.replaceChildren(h('main', { class: 'main stack', style: 'gap:20px' }, h('h1', {}, '精緻圖模擬'), staleNotice(v, 5),
-        h('div', { class: 'card stack' }, h('p', {}, `以你的照片為場景、定裝圖為角色，為 ${est.count} 格分鏡逐格產生精緻圖。`), h('div', {}, btn))),
+        h('div', { class: 'card stack' }, h('p', {}, `以你的照片為場景、定妝板為角色，為 ${est.count} 格分鏡逐格產生精緻圖。`), h('div', {}, btn))),
         actionBar(h('a', { class: 'btn', href: `#/videos/${v.id}/4` }, '上一步'), h('span')));
       return;
     }
@@ -118,7 +118,7 @@ export async function render({ video, refreshCost }) {
     root.replaceChildren(
       h('main', { class: 'main stack', style: 'gap:20px' },
         h('div', { class: 'page-head', style: 'margin:0' },
-          h('div', {}, h('h1', {}, '精緻圖模擬'), h('p', {}, '以你的照片為場景、定裝圖為角色，逐格產生；完成一格就填上一格。')),
+          h('div', {}, h('h1', {}, '精緻圖模擬'), h('p', {}, '以你的照片為場景、定妝板為角色，逐格產生；完成一格就填上一格。')),
           h('div', { class: 'row' }, h('span', { 'data-testid': 'progress' }, `${p.done}／${p.total} 格完成${p.running ? `・${p.running} 格生成中` : ''}${p.failed ? `・${p.failed} 格失敗` : ''}`), retryAll)),
         staleNotice(v, 5),
         strip(),

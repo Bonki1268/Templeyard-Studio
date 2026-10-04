@@ -5,6 +5,7 @@ const { unprocessable, notFound } = require('../http');
 const { seriesVars } = require('../videos/vars');
 const { estimateCost } = require('../cost/prices');
 const wf = require('../videos/workflow');
+const { referenceImage } = require('./step4');
 const { text } = require('../util');
 
 const QUALITY_KEYS = ['face', 'temple', 'hands', 'people'];
@@ -19,7 +20,7 @@ function createStep5Service({ videos, generations, ledger, store, config, jobs }
       .filter(x => x.version);
   }
 
-  // 只用去識別後的照片（media 資料夾）、鎖定版本的定裝圖與分鏡圖作為參考圖。
+  // 只用去識別後的照片（media 資料夾）、鎖定版本的定妝板與分鏡圖作為參考圖。
   function refsFor(v, shot) {
     const photos = v.photos.filter(p => p.status === 'ready');
     const photo = shot.photoIndex ? photos[shot.photoIndex - 1] : null;
@@ -27,7 +28,7 @@ function createStep5Service({ videos, generations, ledger, store, config, jobs }
     return {
       photo,
       chars,
-      refs: [photo && media(photo.file), ...chars.map(x => media(x.version.images.costume.file)), shot.storyboard && media(shot.storyboard.file)].filter(Boolean),
+      refs: [photo && media(photo.file), ...chars.map(x => referenceImage(x.version.images)).filter(Boolean).map(img => media(img.file)), shot.storyboard && media(shot.storyboard.file)].filter(Boolean),
     };
   }
 

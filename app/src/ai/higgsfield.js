@@ -8,7 +8,6 @@ const crypto = require('node:crypto');
 
 const API = 'https://api.higgsfield.ai';
 const CONTENT_TYPES = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.wav': 'audio/wav', '.mp4': 'video/mp4' };
-const VIEWS = { front: '視角：正面全身', side: '視角：側面全身', back: '視角：背面全身', costume: '定裝圖：服裝與臉部細節特寫' };
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 function resolutionFor(height) {
@@ -128,10 +127,10 @@ function createHiggsfieldMedia({
     videoModel,
     ruleModels: { video: videoModel.includes('seedance-2.0') ? 'seedance-2.0' : undefined },
     image: {
-      async generate({ request, refs = [], variant = '' }) {
+      async generate({ request, refs = [] }) {
         const endpoint = endpointFor(request, imageModel);
         const body = {
-          prompt: [promptOf(request), VIEWS[variant]].filter(Boolean).join('\n'),
+          prompt: promptOf(request),
           aspect_ratio: request.target?.aspectRatio || '16:9',
           resolution: request.promptId === 'refined-frame' ? '2k' : '1k',
           quality: 'medium',

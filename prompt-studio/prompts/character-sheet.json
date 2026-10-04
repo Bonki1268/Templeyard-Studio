@@ -1,16 +1,16 @@
 {
   "id": "character-sheet",
   "step": 4,
-  "name": "角色三視圖與定裝圖",
-  "description": "步驟 4：依腳本需要的角色產生三視圖與定裝圖。",
-  "version": 2,
-  "updatedAt": "2026-10-03T16:23:45.629Z",
+  "name": "角色四格定妝板",
+  "description": "步驟 4：依腳本需要的角色產生一張四格定妝板（正面不要頭、側面、背面、頭部特寫），作為精緻圖與影片的角色參考。",
+  "version": 3,
+  "updatedAt": "2026-10-04T12:00:00.000Z",
   "target": {
     "kind": "image",
     "model": "",
     "aspectRatio": "16:9"
   },
-  "system": "Character design sheet on a pure white background: front, side and back full-body views of the same character with consistent proportions and costume, plus a costume detail (定裝) panel. Same face, hairstyle and outfit in every view. No text, no logos.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
+  "system": "Four-panel character reference board: ONE image split into a 2×2 grid showing the same single character, photorealistic, plain light-grey studio background, soft even lighting, neutral standing pose with relaxed arms.\n第 1 格（左上）正面・不要頭：正面全身但畫面從脖子以下開始，完全不要頭，只鎖定身形與服裝。\n第 2 格（右上）側面：側身全身，清楚呈現側身輪廓與身體厚度。\n第 3 格（左下）背面：背面全身，呈現髮型背面與服裝背面。\n第 4 格（右下）頭部特寫：大頭像，正面看鏡頭，臉部佔滿整格，五官清楚。\n四格必須是同一個人、同一套服裝與同樣的身材比例。No text, no numbers, no logos.\n內容與宗教規則：只使用下方提供的寺廟資料與使用者輸入，不可自行補寫歷史年代、人物或傳說；不得對神明不敬，不得出現不敬的動作、台詞或畫面；畫面中不可出現可辨識的真實民眾。",
   "template": "角色名稱：{{character.name}}\n外觀描述：{{character.description}}\n系列視覺風格：{{series.style}}\n參考的定裝版本：{{character.reference}}\n使用者調整指令：{{instruction}}",
   "variables": [
     {

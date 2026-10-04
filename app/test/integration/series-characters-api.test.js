@@ -38,7 +38,7 @@ test('系列角色新增與 AI 輔助 API', async t => {
     const r = await s.get(`${base}/estimate/characters`);
     assert.equal(r.status, 200);
     assert.equal(r.data.draft, PRICES.text.perCall);
-    assert.equal(r.data.sheet, +(4 * PRICES.image.perImage).toFixed(4));
+    assert.equal(r.data.sheet, PRICES.image.perImage);
   });
 
   await t.test('場景：在系列頁為角色產生三視圖與定裝圖', async () => {
@@ -50,13 +50,13 @@ test('系列角色新增與 AI 輔助 API', async t => {
     assert.equal(c.selectedVersion, 1);
     assert.equal(c.lockedVersion, null);
     const images = c.versions[0].images;
-    for (const view of ['front', 'side', 'back', 'costume']) assert.ok(images[view].url, `缺少 ${view}`);
-    assert.equal(new Set(Object.values(images).map(i => i.file)).size, 4);
+    assert.deepEqual(Object.keys(images), ['board']);
+    assert.ok(images.board.url);
     const sheets = (await s.get(`/api/generations?seriesId=${series.id}`)).data.generations.filter(g => g.promptId === 'character-sheet');
-    assert.equal(sheets.length, 4);
+    assert.equal(sheets.length, 1);
     assert.ok(sheets.every(g => g.seriesId === series.id && g.characterId === character.id));
     const cost = (await s.get(`${base}/cost`)).data.cost;
-    assert.equal(cost.spent, +(PRICES.text.perCall + 4 * PRICES.image.perImage).toFixed(4));
+    assert.equal(cost.spent, +(PRICES.text.perCall + PRICES.image.perImage).toFixed(4));
     assert.equal(cost.cap, series.costCap);
   });
 
@@ -66,7 +66,7 @@ test('系列角色新增與 AI 輔助 API', async t => {
     assert.equal(c.versions.length, 2);
     assert.equal(c.selectedVersion, 2);
     assert.equal(c.versions[1].instruction, '換成深藍色唐裝');
-    assert.notEqual(c.versions[1].images.costume.file, c.versions[0].images.costume.file);
+    assert.notEqual(c.versions[1].images.board.file, c.versions[0].images.board.file);
   });
 
   await t.test('場景：鎖定系列角色的定裝版本', async () => {
@@ -109,7 +109,7 @@ test('系列頁鎖定的角色由之後的影片沿用', async t => {
     const r = await s.post(`${base}/characters/generate`, {});
     const c = r.data.video.characters.find(x => x.name === '導覽員小晴');
     assert.equal(c.reused, true);
-    assert.equal(c.versions[0].images.costume.file, locked.images.costume.file);
+    assert.equal(c.versions[0].images.board.file, locked.images.board.file);
     const gens = (await s.get(`/api/generations?videoId=${video.id}`)).data.generations.filter(g => g.promptId === 'character-sheet');
     assert.equal(gens.length, 0);
   });

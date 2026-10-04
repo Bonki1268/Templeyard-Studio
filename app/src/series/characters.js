@@ -1,8 +1,8 @@
-// 系列角色（角色庫）：依構想撰寫外觀描述、產生三視圖與定裝圖、鎖定定裝版本、刪除角色。
+// 系列角色（角色庫）：依構想撰寫外觀描述、產生四格定妝板、鎖定定裝版本、刪除角色。
 // 費用記在系列帳（series:<id>）上；鎖定的版本讓之後新增的影片在角色設計步驟直接沿用。
 const { unprocessable, notFound } = require('../http');
 const { estimateCost } = require('../cost/prices');
-const { generateSheet, VIEWS } = require('../steps/step4');
+const { generateSheet } = require('../steps/step4');
 const { text } = require('../util');
 
 const STEP = 1;
@@ -24,7 +24,7 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
   }
 
   return {
-    estimate: () => ({ draft: estimateCost('text'), sheet: estimateCost('image', { count: VIEWS.length }) }),
+    estimate: () => ({ draft: estimateCost('text'), sheet: estimateCost('image', { count: 1 }) }),
 
     cost: id => { series.get(id); return ledger.summary(account(id)); },
 
@@ -53,11 +53,11 @@ function createSeriesCharacterService({ series, store, generations, ledger, conf
       const c = find(s, cid);
       const desc = text(description) || c.description;
       if (!desc) throw unprocessable('description_required', '請先填寫外觀描述', { details: [{ field: 'description', message: '請先填寫外觀描述' }] });
-      ledger.check(account(id), estimateCost('image', { count: VIEWS.length }), consent);
+      ledger.check(account(id), estimateCost('image', { count: 1 }), consent);
       const current = c.versions.find(x => x.version === (c.selectedVersion ?? c.lockedVersion));
       const images = await generateSheet({ generations, config }, {
         character: { id: c.id, name: c.name, description: desc }, style: s.style, instruction,
-        reference: current ? `第 ${current.version} 版定裝圖` : '', consent: true, step: STEP, record: record(id),
+        reference: current ? `第 ${current.version} 版定妝板` : '', consent: true, step: STEP, record: record(id),
       });
       return mutate(id, cid, t => {
         const version = Math.max(0, ...t.versions.map(x => x.version)) + 1;

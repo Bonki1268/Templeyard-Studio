@@ -48,13 +48,13 @@ test('步驟 5 API', async t => {
     assert.equal(calls.length, 10);
     const stored = s.app.ctx.store.get('videos', videoId);
     const character = stored.characters[0];
-    const costume = character.versions.find(x => x.version === character.lockedVersion).images.costume.file;
+    const board = character.versions.find(x => x.version === character.lockedVersion).images.board.file;
     for (const call of calls) {
       for (const ref of call.refs) {
         assert.ok(ref.startsWith(config.mediaDir + path.sep), `參考圖必須在 media 資料夾：${ref}`);
         assert.ok(!ref.includes(`${path.sep}private${path.sep}`));
       }
-      assert.ok(call.refs.includes(path.join(config.mediaDir, costume)), '應帶入鎖定版本的定裝圖');
+      assert.ok(call.refs.includes(path.join(config.mediaDir, board)), '應帶入鎖定版本的定妝板');
     }
     const shot1 = stored.script.shots[0];
     const photo = stored.photos.filter(p => p.status === 'ready')[shot1.photoIndex - 1];

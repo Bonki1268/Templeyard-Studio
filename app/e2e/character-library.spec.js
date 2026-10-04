@@ -32,14 +32,14 @@ test.describe('角色庫', () => {
   test('場景：在角色庫產生定裝圖並鎖定版本', async ({ page, request }) => {
     const series = await createSeries(request, { name: '板橋慈惠宮巡禮' });
     await page.goto(`/#/series/${series.id}/characters`);
-    await page.getByTestId('library-character').filter({ hasText: '導覽員小晴' }).getByRole('button', { name: '定裝圖' }).click();
+    await page.getByTestId('library-character').filter({ hasText: '導覽員小晴' }).getByRole('button', { name: '定妝板' }).click();
     const panel = page.getByTestId('library-character-panel');
-    await panel.getByRole('button', { name: /產生定裝圖/ }).click();
-    await expect(panel.getByRole('img', { name: '導覽員小晴 定裝圖' })).toBeVisible();
+    await panel.getByRole('button', { name: /產生定妝板/ }).click();
+    await expect(panel.getByRole('img', { name: '導覽員小晴 定妝板' })).toBeVisible();
     await panel.getByRole('button', { name: '鎖定此版本' }).click();
     const item = page.getByTestId('library-character').filter({ hasText: '導覽員小晴' });
     await expect(item).toContainText('定裝版本 v1・已鎖定');
-    await expect(item.getByRole('img', { name: '導覽員小晴定裝圖' })).toBeVisible();
+    await expect(item.getByRole('img', { name: '導覽員小晴定妝板' })).toBeVisible();
   });
 
   test('場景：在角色庫刪除角色', async ({ page, request }) => {

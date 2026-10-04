@@ -1,13 +1,17 @@
-// 步驟 4：依腳本需要的角色產生三視圖與定裝圖；系列已鎖定的角色直接沿用。
+// 步驟 4：依腳本需要的角色產生四格定妝板；系列已鎖定的角色直接沿用。
 // 確認時鎖定選用的版本；系列角色或勾選「加入系列角色」者寫回系列，之後的影片沿用。
 const path = require('node:path');
 const { unprocessable, notFound } = require('../http');
 const { seriesVars } = require('../videos/vars');
 const { estimateCost } = require('../cost/prices');
 const wf = require('../videos/workflow');
-const { mapLimit, text } = require('../util');
+const { text } = require('../util');
 
-const VIEWS = ['front', 'side', 'back', 'costume'];
+// 定妝板是一張 2×2 的四格圖：① 正面・不要頭 ② 側面 ③ 背面 ④ 頭部特寫。
+const BOARD = 'board';
+
+// 角色版本的參考圖：四格定妝板；舊版本（front/side/back/costume 分開產生）則用定裝圖。
+const referenceImage = images => images?.[BOARD] || images?.costume || null;
 
 function neededCharacters(script) {
   const byName = new Map();
@@ -20,23 +24,19 @@ function neededCharacters(script) {
   return [...byName].map(([name, description]) => ({ name, description }));
 }
 
-// 產生三視圖與定裝圖（四張），回傳 { front, side, back, costume }。
+// 產生一張四格定妝板，回傳 { board }。
 // record 是生成紀錄與記帳的歸屬：影片（videoId）或系列（account、meta.seriesId）。
 async function generateSheet({ generations, config }, { character, style, instruction = '', reference = '', consent, step, record }) {
   const variables = {
     character: { name: character.name, description: character.description || `${character.name}（依腳本）`, reference },
     series: { style }, instruction: text(instruction),
   };
-  const images = {};
-  await mapLimit(VIEWS, 4, async view => {
-    const { generation, result } = await generations.run({
-      ...record, step, promptId: 'character-sheet', variables, instruction: text(instruction), consent,
-      units: { count: 1 }, meta: { ...record.meta, characterId: character.id, view },
-      call: (ai, request) => ai.image.generate({ request, variant: view }),
-    });
-    images[view] = { file: path.relative(config.mediaDir, result.file), generationId: generation.id };
+  const { generation, result } = await generations.run({
+    ...record, step, promptId: 'character-sheet', variables, instruction: text(instruction), consent,
+    units: { count: 1 }, meta: { ...record.meta, characterId: character.id, view: BOARD },
+    call: (ai, request) => ai.image.generate({ request, variant: BOARD }),
   });
-  return images;
+  return { [BOARD]: { file: path.relative(config.mediaDir, result.file), generationId: generation.id } };
 }
 
 function createStep4Service({ videos, generations, ledger, store, config }) {
@@ -65,7 +65,7 @@ function createStep4Service({ videos, generations, ledger, store, config }) {
     estimate(id) {
       const items = plan(videos.get(id));
       const newCharacters = items.filter(i => i.generate || (i.sc && !lockedOf(i.sc) && !i.existing)).length;
-      return { action: 'characters', newCharacters, estimate: estimateCost('image', { count: newCharacters * VIEWS.length }) };
+      return { action: 'characters', newCharacters, estimate: estimateCost('image', { count: newCharacters }) };
     },
 
     async generate(id, { consent = false } = {}) {
@@ -95,9 +95,9 @@ function createStep4Service({ videos, generations, ledger, store, config }) {
       wf.assertCanEnter(v, 4);
       const c = { ...findCharacter(v, cid) };
       if (description !== undefined && text(description)) c.description = text(description);
-      ledger.check(id, estimateCost('image', { count: VIEWS.length }), consent);
+      ledger.check(id, estimateCost('image', { count: 1 }), consent);
       const current = c.versions.find(x => x.version === c.selectedVersion);
-      const images = await sheet(v, c, { instruction, reference: current ? `第 ${current.version} 版定裝圖` : '', consent: true });
+      const images = await sheet(v, c, { instruction, reference: current ? `第 ${current.version} 版定妝板` : '', consent: true });
       return videos.mutate(id, 4, video => {
         const target = findCharacter(video, cid);
         const version = Math.max(0, ...target.versions.map(x => x.version)) + 1;
@@ -151,4 +151,4 @@ function registerStep4Routes(router, { step4, present }) {
   router.patch(`${base}/:cid`, async ({ params, json }) => reply(step4.update(params.id, params.cid, await json())));
 }
 
-module.exports = { createStep4Service, registerStep4Routes, neededCharacters, generateSheet, VIEWS };
+module.exports = { createStep4Service, registerStep4Routes, neededCharacters, generateSheet, referenceImage, BOARD };

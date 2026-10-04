@@ -35,7 +35,7 @@ export async function seriesPage(id) {
   }
   showSettings();
 
-  // 系列角色只列名稱預覽；新增、刪除、定裝圖都在角色庫。
+  // 系列角色只列名稱預覽；新增、刪除、定妝板都在角色庫。
   const characters = h('section', { class: 'card stack', 'aria-labelledby': 'chars-title' },
     h('div', { class: 'row', style: 'justify-content:space-between' }, h('h2', { id: 'chars-title' }, '系列角色'),
       h('a', { class: 'btn btn-sm', href: `#/series/${id}/characters` }, '角色庫 ›')),

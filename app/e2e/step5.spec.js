@@ -37,10 +37,10 @@ test.describe.serial('步驟 5 精緻圖', () => {
 
   test('場景：勾選品質檢查', async ({ page }) => {
     await page.goto(`/#/videos/${ctx.video.id}/5`);
-    await page.getByLabel('角色臉、髮型、服裝與定裝圖一致').check();
+    await page.getByLabel('角色臉、髮型、服裝與定妝板一致').check();
     await expect(page.getByTestId('quality-saved')).toBeVisible();
     await page.reload();
-    await expect(page.getByLabel('角色臉、髮型、服裝與定裝圖一致')).toBeChecked();
+    await expect(page.getByLabel('角色臉、髮型、服裝與定妝板一致')).toBeChecked();
   });
 
   test('場景：每格都有精緻圖後確認並前往影片生成', async ({ page }) => {

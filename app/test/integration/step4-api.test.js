@@ -20,7 +20,7 @@ test('步驟 4 API：新角色', async t => {
   await t.test('場景：產生角色前先看到預估費用', async () => {
     const r = await s.get(`${base}/estimate/characters`);
     assert.equal(r.data.newCharacters, 1);
-    assert.equal(r.data.estimate, +(4 * PRICES.image.perImage).toFixed(4));
+    assert.equal(r.data.estimate, PRICES.image.perImage);
   });
 
   await t.test('場景：依腳本找出需要的角色並產生三視圖與定裝圖', async () => {
@@ -32,10 +32,10 @@ test('步驟 4 API：新角色', async t => {
     assert.equal(character.source, 'video');
     assert.equal(character.selectedVersion, 1);
     const images = character.versions[0].images;
-    for (const view of ['front', 'side', 'back', 'costume']) assert.ok(images[view].url, `缺少 ${view}`);
-    assert.equal(new Set(Object.values(images).map(i => i.file)).size, 4);
+    assert.deepEqual(Object.keys(images), ['board']);
+    assert.ok(images.board.url);
     const gens = (await s.get(`/api/generations?videoId=${videoId}`)).data.generations.filter(g => g.promptId === 'character-sheet');
-    assert.equal(gens.length, 4);
+    assert.equal(gens.length, 1);
   });
 
   await t.test('場景：依指令重新產生角色並保留舊版本', async () => {
@@ -45,7 +45,7 @@ test('步驟 4 API：新角色', async t => {
     assert.equal(c.selectedVersion, 2);
     assert.equal(c.description, '70 歲左右男性，灰白短髮');
     assert.equal(c.versions[1].instruction, '換成灰色唐裝');
-    assert.notEqual(c.versions[1].images.costume.file, c.versions[0].images.costume.file);
+    assert.notEqual(c.versions[1].images.board.file, c.versions[0].images.board.file);
   });
 
   await t.test('場景：確認後鎖定角色版本', async () => {
@@ -62,7 +62,7 @@ test('步驟 4 API：新角色', async t => {
     const sc = sr.characters.find(c => c.name === '導覽員');
     assert.ok(sc, '系列應有「導覽員」');
     assert.equal(sc.lockedVersion, 1);
-    assert.ok(sc.versions[0].images.costume.url);
+    assert.ok(sc.versions[0].images.board.url);
     // 同系列第二支影片
     const v2 = (await s.post(`/api/series/${series.id}/videos`, {})).data.video;
     const b2 = `/api/videos/${v2.id}`;

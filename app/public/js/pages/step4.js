@@ -1,8 +1,8 @@
-// 步驟 4：角色設計（三視圖與定裝圖、版本、加入系列角色）。
+// 步驟 4：角色設計（四格定妝板、版本、加入系列角色）。
 import { h, api, toast, money } from '../ui.js';
 import { withConsent, actionBar, staleNotice } from './video.js';
+import { boardImage, boardView } from './board.js';
 
-const VIEWS = [['front', '正面', '三視圖・正面'], ['side', '側面', '三視圖・側面'], ['back', '背面', '三視圖・背面'], ['costume', '定裝圖', '定裝圖（生成時的參考）']];
 
 export async function render({ video, refreshCost }) {
   const base = `/api/videos/${video.id}`;
@@ -24,7 +24,7 @@ export async function render({ video, refreshCost }) {
   }
 
   function costumeOf(c) {
-    return c.versions.find(x => x.version === c.selectedVersion)?.images?.costume;
+    return boardImage(c.versions.find(x => x.version === c.selectedVersion)?.images);
   }
 
   function listItem(c) {
@@ -50,11 +50,8 @@ export async function render({ video, refreshCost }) {
           class: `btn btn-sm${x.version === c.selectedVersion ? ' btn-primary' : ''}`, 'aria-pressed': String(x.version === c.selectedVersion),
           onclick: () => run(null, () => api('PATCH', `${base}/characters/${c.id}`, { selectedVersion: x.version })),
         }, `v${x.version}`)))),
-      h('div', { class: 'grid grid-4' }, VIEWS.map(([key, alt, caption]) => h('figure', { style: 'margin:0', class: 'stack' },
-        h('div', { class: `ph${key === 'costume' ? ' selected' : ''}`, style: 'aspect-ratio:3/4;border-radius:10px' },
-          version?.images?.[key] ? h('img', { src: version.images[key].url, alt: `${c.name} ${alt}` }) : alt),
-        h('figcaption', { class: 'small muted' }, caption)))),
-      c.reused ? h('p', { class: 'small muted' }, `沿用系列角色的定裝版本 v${c.selectedVersion}，不重新產生；需要修改時可依指令重新生成。`) : null,
+      boardView(c.name, version?.images),
+      c.reused ? h('p', { class: 'small muted' }, `沿用系列角色的定妝板 v${c.selectedVersion}，不重新產生；需要修改時可依指令重新生成。`) : null,
       h('div', { class: 'field' }, h('label', { for: 'char-description' }, '外觀描述（來自腳本，可修改）'), desc),
       h('div', { class: 'field' }, h('label', { for: 'char-instruction' }, '調整指令'), h('div', { class: 'row', style: 'flex-wrap:nowrap' }, instruction, regen)),
       h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: seriesLocked || c.addToSeries, disabled: seriesLocked,
@@ -68,7 +65,7 @@ export async function render({ video, refreshCost }) {
       const btn = h('button', { class: 'btn btn-primary', onclick: () => run(btn, consent => api('POST', `${base}/characters/generate`, { consent })) },
         `產生角色（預估 ${money(est.estimate)}）`);
       root.replaceChildren(h('main', { class: 'main stack', style: 'gap:20px' }, h('h1', {}, '角色設計'), staleNotice(v, 4),
-        h('div', { class: 'card stack' }, h('p', {}, `依分鏡腳本找出需要的角色：系列已鎖定的角色直接沿用，新角色由 AI 產生三視圖與定裝圖（需新產生 ${est.newCharacters} 位）。`), h('div', {}, btn))),
+        h('div', { class: 'card stack' }, h('p', {}, `依分鏡腳本找出需要的角色：系列已鎖定的角色直接沿用，新角色由 AI 產生一張四格定妝板（需新產生 ${est.newCharacters} 位）。`), h('div', {}, btn))),
         actionBar(h('a', { class: 'btn', href: `#/videos/${v.id}/3` }, '上一步'), h('span')));
       return;
     }
@@ -80,7 +77,7 @@ export async function render({ video, refreshCost }) {
     root.replaceChildren(
       h('main', { class: 'main' },
         h('div', { class: 'page-head' }, h('div', {}, h('h1', {}, '角色設計'),
-          h('p', {}, `腳本需要 ${v.characters.length} 位角色：系列角色直接沿用，新角色由 AI 產生三視圖與定裝圖。`))),
+          h('p', {}, `腳本需要 ${v.characters.length} 位角色：系列角色直接沿用，新角色由 AI 產生四格定妝板。`))),
         staleNotice(v, 4),
         h('div', { class: 'layout' },
           h('div', { class: 'side stack', style: 'flex:0 1 280px;gap:12px' }, v.characters.map(listItem)),
